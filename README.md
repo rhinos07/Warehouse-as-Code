@@ -25,7 +25,7 @@ one that doesn't exist yet), so it gets its own home here.
 
 | Domain | Status | Owner |
 |---|---|---|
-| Physical warehouse structure (storage points, lanes, WCS, movement/replenishment rules) | Modeled | [`Warehouse-as-Code`](https://github.com/rhinos07/Warehouse-as-Code) *(rename to `Topology-as-Code` under discussion, not yet done)* |
+| Physical warehouse structure (storage points, lanes, WCS, movement/replenishment rules) | Modeled | [`Topology-as-Code`](https://github.com/rhinos07/Topology-as-Code) |
 | Order splitting & fulfillment orchestration (order/sub-order lineage, split/completion rules, order-target vs. movement-target) | Modeled | [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code) |
 | Item/article master data (item master, packaging/UOM hierarchy, sourcing & lifecycle) | Referenced, not yet built | `MasterData-as-Code` (planned, doesn't exist yet) |
 | Inventory / stock (on-hand, reservations, allocation state) | Not modeled | - |
@@ -42,7 +42,7 @@ not structure.
 ## Shared Principles Across Sibling Repos
 
 Every sibling repo follows the same pattern, established first in
-`Warehouse-as-Code`:
+`Topology-as-Code`:
 
 - **Structure vs. strategies vs. runtime**: physical/structural shape
   changes rarely and gets strict review; process rules/strategies
@@ -65,10 +65,10 @@ currently duplicated rather than centrally owned, by deliberate choice
 extracting into a real shared-catalog repo once duplication actually
 causes drift:
 
-- `process_types` (`Warehouse-as-Code`) - referenced by
+- `process_types` (`Topology-as-Code`) - referenced by
   `movement_rule.trigger` there and `workflow_trigger.trigger` in
   `OrderOrchestration-as-Code`.
-- `load_unit_types` (`Warehouse-as-Code`) - referenced by
+- `load_unit_types` (`Topology-as-Code`) - referenced by
   `order-position.schema.json`'s `load_unit_request.load_unit_type` in
   `OrderOrchestration-as-Code`; candidate to move to `MasterData-as-Code`
   once that exists.
@@ -77,9 +77,6 @@ causes drift:
 
 ## Open Questions
 
-- Whether/when to rename `Warehouse-as-Code` to `Topology-as-Code` and
-  let this repo take over the `warehouse-as-code` name as the umbrella
-  term for the whole domain - discussed, not decided or executed.
 - Whether to extract a shared-vocabulary repo (see above) - deliberately
   deferred until duplication causes real pain.
 - Everything under "Not modeled" above.
