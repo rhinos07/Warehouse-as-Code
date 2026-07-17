@@ -18,8 +18,8 @@ become production software.
 Each sibling repo already documents itself well, but nothing documents
 the *landscape* - which WMS capability areas exist at all, which of
 them are modeled somewhere, and which are deliberately still blank.
-That question doesn't belong to any single sibling repo (least of all
-one that doesn't exist yet), so it gets its own home here.
+That question doesn't belong to any single sibling repo, so it gets its
+own home here.
 
 ## Domain Map
 
@@ -27,7 +27,7 @@ one that doesn't exist yet), so it gets its own home here.
 |---|---|---|
 | Physical warehouse structure (storage points, lanes, WCS, movement/replenishment rules) | Modeled | [`Topology-as-Code`](https://github.com/rhinos07/Topology-as-Code) |
 | Order splitting & fulfillment orchestration (order/sub-order lineage, split/completion rules, order-target vs. movement-target) | Modeled | [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code) |
-| Item/article master data (item master, packaging/UOM hierarchy, sourcing & lifecycle) | Referenced, not yet built | `MasterData-as-Code` (planned, doesn't exist yet) |
+| Item/article master data (item master, packaging/UOM hierarchy, sourcing & lifecycle) | Modeled | [`MasterData-as-Code`](https://github.com/rhinos07/MasterData-as-Code) |
 | Inventory / stock (on-hand, reservations, allocation state) | Not modeled | - |
 | Wave / batch planning | Not modeled | - |
 | Task execution (`ExecutionTask`/`FulfillmentResult` - the runtime instantiation of a `process_type`/`movement_rule.trigger`) | Deliberately out of scope everywhere | Runtime WMS/WES system, not a "-as-Code" repo |
@@ -38,6 +38,35 @@ one that doesn't exist yet), so it gets its own home here.
 "Not modeled" = nobody has started; "deliberately excluded" = a
 sibling repo's own README explicitly rules it out as runtime state,
 not structure.
+
+## Out-of-Scope Domains
+
+Some domains are deliberately never modeled as declarative YAML in any
+sibling repo, because they are inherently runtime state, not desired
+structure/rules. They're listed here so it's clear the gap is a design
+decision, not an oversight.
+
+### Task execution
+
+The actual instantiation and execution of a warehouse task or
+fulfillment step - e.g. an `ExecutionTask` (a concrete pick, putaway, or
+move job dispatched to a worker/vehicle/controller) and its
+`FulfillmentResult` (what actually happened: quantity confirmed, time
+taken, success/failure). This is the runtime counterpart to two things
+that *are* modeled declaratively:
+
+- `Topology-as-Code`'s `movement_rule.trigger` / `elements/process_types.yaml`
+  (what kinds of movement are allowed/possible, and under what named
+  category),
+- `OrderOrchestration-as-Code`'s `workflow_trigger` (which named workflow
+  a split order piece hands off to).
+
+Both repos define *which* named process/workflow should happen and
+*when* it's triggered - never the live task queue, its assignment to a
+resource, its progress, or its outcome. That state lives entirely in
+the runtime WMS/WES system (here, KCC), changes continuously, and has
+no meaningful "desired state" to diff against - so it stays out of
+scope in every sibling repo, not just unmodeled by omission.
 
 ## Shared Principles Across Sibling Repos
 
@@ -70,9 +99,8 @@ causes drift:
   `OrderOrchestration-as-Code`.
 - `load_unit_types` (`Topology-as-Code`) - referenced by
   `order-position.schema.json`'s `load_unit_request.load_unit_type` in
-  `OrderOrchestration-as-Code`; candidate to move to `MasterData-as-Code`
-  once that exists.
-- `item_id` (`MasterData-as-Code`, once it exists) - referenced by
+  `OrderOrchestration-as-Code`; candidate to move to `MasterData-as-Code`.
+- `item_id` (`MasterData-as-Code`) - referenced by
   `order-position.schema.json`'s `material_request.item_id`.
 
 ## Open Questions
