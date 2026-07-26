@@ -1,5 +1,7 @@
 # Warehouse-as-Code – eine Einführung für den Fachbereich
 
+*[Read this in English](business-overview.md)*
+
 Diese Seite erklärt, worum es in der "Warehouse-as-Code"-Repo-Familie geht –
 **ohne Code, YAML oder Technik-Jargon**. Sie richtet sich an alle, die
 verstehen wollen, was hier beschrieben wird und warum, aber nicht selbst
