@@ -129,10 +129,19 @@ same reason the Domain Map above lives here.
   vendor extensions into distinct layers, so strictness at the WMS
   boundary and openness at the authoring surface stop competing.
 
+## Open Work
+
+[`docs/backlog.md`](docs/backlog.md) maps what is still open across all
+five repos and in what order it makes sense to do it - sequencing and
+cross-repo dependencies belong to no single repo either. Each repo's own
+"Next Steps" stays authoritative for the detail of its items.
+
 ## Open Questions
 
 - Whether to extract a shared-vocabulary repo (see above) - deliberately
-  deferred until duplication causes real pain.
+  deferred until duplication causes real pain. Note `storage_technologies`
+  was settled a different way: given an owner (`Topology-as-Code`) rather
+  than extracted.
 - Everything under "Not modeled" above.
 
 ## Non-Goals
