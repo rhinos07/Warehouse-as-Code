@@ -147,3 +147,6 @@ in these repos. That's a deliberate decision, not a gap.
   [`MasterData-as-Code`](https://github.com/rhinos07/MasterData-as-Code),
   [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code),
   and [`Allocation-as-Code`](https://github.com/rhinos07/Allocation-as-Code).
+- Building an actual WMS runtime against these repos:
+  [`wms-implementation-guide.md`](wms-implementation-guide.md) – the
+  technical counterpart to this page.
