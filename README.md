@@ -118,6 +118,17 @@ causes drift:
 - `item_id` (`MasterData-as-Code`) - referenced by
   `order-position.schema.json`'s `material_request.item_id`.
 
+## Architecture Decisions
+
+Decisions that cut across several sibling repos live in
+[`docs/adr/`](docs/adr/) - they belong to no single repo, which is the
+same reason the Domain Map above lives here.
+
+- [ADR-0001: Layered specification model](docs/adr/0001-layered-specification-model.md) -
+  separates human-authored intent, the compiled machine contract, and
+  vendor extensions into distinct layers, so strictness at the WMS
+  boundary and openness at the authoring surface stop competing.
+
 ## Open Questions
 
 - Whether to extract a shared-vocabulary repo (see above) - deliberately
