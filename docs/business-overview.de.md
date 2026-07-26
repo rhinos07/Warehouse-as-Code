@@ -153,3 +153,6 @@ Repos. Das ist eine bewusste Entscheidung, keine Lücke.
   [`MasterData-as-Code`](https://github.com/rhinos07/MasterData-as-Code),
   [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code)
   und [`Allocation-as-Code`](https://github.com/rhinos07/Allocation-as-Code).
+- Um tatsächlich ein WMS-Runtime gegen diese Repos zu entwickeln:
+  [`wms-implementation-guide.md`](wms-implementation-guide.md) (Englisch)
+  – das technische Gegenstück zu dieser Seite.
