@@ -28,7 +28,8 @@ own home here.
 | Physical warehouse structure (storage points, lanes, WCS, movement/replenishment rules) | Modeled | [`Topology-as-Code`](https://github.com/rhinos07/Topology-as-Code) |
 | Order splitting & fulfillment orchestration (order/sub-order lineage, split/completion rules, order-target vs. movement-target) | Modeled | [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code) |
 | Item/article master data (item master, packaging/UOM hierarchy, sourcing & lifecycle) | Modeled | [`MasterData-as-Code`](https://github.com/rhinos07/MasterData-as-Code) |
-| Inventory / stock (on-hand, reservations, allocation state) | Not modeled | - |
+| Stock search / allocation strategy (search-zone sequence, selection strategy, constraints) | Modeled | [`Allocation-as-Code`](https://github.com/rhinos07/Allocation-as-Code) |
+| Inventory / stock (on-hand, reservations, actual allocation result) | Not modeled | - |
 | Wave / batch planning | Not modeled | - |
 | Task execution (`ExecutionTask`/`FulfillmentResult` - the runtime instantiation of a `process_type`/`movement_rule.trigger`) | Deliberately out of scope everywhere | Runtime WMS/WES system, not a "-as-Code" repo |
 | Slotting optimization | Deliberately excluded (analytics/runtime territory) | - |
