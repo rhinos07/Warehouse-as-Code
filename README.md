@@ -28,8 +28,8 @@ own home here.
 | Physical warehouse structure (storage points, lanes, WCS, movement/replenishment rules) | Modeled | [`Topology-as-Code`](https://github.com/rhinos07/Topology-as-Code) |
 | Order splitting & fulfillment orchestration (order/sub-order lineage, split/completion rules, order-target vs. movement-target) | Modeled | [`OrderOrchestration-as-Code`](https://github.com/rhinos07/OrderOrchestration-as-Code) |
 | Item/article master data (item master, packaging/UOM hierarchy, sourcing & lifecycle) | Modeled | [`MasterData-as-Code`](https://github.com/rhinos07/MasterData-as-Code) |
-| Stock search / allocation strategy (search-zone sequence, selection strategy, constraints) | Modeled | [`Allocation-as-Code`](https://github.com/rhinos07/Allocation-as-Code) |
-| Inventory / stock (on-hand, reservations, actual allocation result) | Not modeled | - |
+| Stock search / allocation strategy (search-zone sequence, selection strategy e.g. FIFO/FEFO/LIFO, constraints) | Modeled | [`Allocation-as-Code`](https://github.com/rhinos07/Allocation-as-Code) |
+| Inventory / stock state (on-hand, reservations, which storage_point/batch a search actually resolved to) | Not modeled | - |
 | Wave / batch planning | Not modeled | - |
 | Task execution (`ExecutionTask`/`FulfillmentResult` - the runtime instantiation of a `process_type`/`movement_rule.trigger`) | Deliberately out of scope everywhere | Runtime WMS/WES system, not a "-as-Code" repo |
 | Slotting optimization | Deliberately excluded (analytics/runtime territory) | - |
@@ -38,7 +38,21 @@ own home here.
 
 "Not modeled" = nobody has started; "deliberately excluded" = a
 sibling repo's own README explicitly rules it out as runtime state,
-not structure.
+not structure. `Allocation-as-Code` only models the *search strategy*
+(where to look, and in what order); the actual inventory/reservation
+state it searches over is still "Not modeled" everywhere, by design.
+
+## Executable Validation (Not a Domain)
+
+[`WMS-POC`](https://github.com/rhinos07/WMS-POC) (private) is not a
+"-as-Code" spec repo and owns no domain above - it's a small, deliberately
+minimal proof of concept that actually **executes** the declarative config
+from `Topology-as-Code`, `OrderOrchestration-as-Code` and
+`MasterData-as-Code` (compiles real topology, runs the order-splitting/
+workflow-trigger/completion-rule lifecycle, checks item ids against real
+master data) against an in-memory toy inventory ledger. It exists to
+surface gaps that reading the YAML alone doesn't - see its own README
+"Findings" for what running the config actually turned up.
 
 ## Out-of-Scope Domains
 
@@ -104,10 +118,30 @@ causes drift:
 - `item_id` (`MasterData-as-Code`) - referenced by
   `order-position.schema.json`'s `material_request.item_id`.
 
+## Architecture Decisions
+
+Decisions that cut across several sibling repos live in
+[`docs/adr/`](docs/adr/) - they belong to no single repo, which is the
+same reason the Domain Map above lives here.
+
+- [ADR-0001: Layered specification model](docs/adr/0001-layered-specification-model.md) -
+  separates human-authored intent, the compiled machine contract, and
+  vendor extensions into distinct layers, so strictness at the WMS
+  boundary and openness at the authoring surface stop competing.
+
+## Open Work
+
+[`docs/backlog.md`](docs/backlog.md) maps what is still open across all
+five repos and in what order it makes sense to do it - sequencing and
+cross-repo dependencies belong to no single repo either. Each repo's own
+"Next Steps" stays authoritative for the detail of its items.
+
 ## Open Questions
 
 - Whether to extract a shared-vocabulary repo (see above) - deliberately
-  deferred until duplication causes real pain.
+  deferred until duplication causes real pain. Note `storage_technologies`
+  was settled a different way: given an owner (`Topology-as-Code`) rather
+  than extracted.
 - Everything under "Not modeled" above.
 
 ## Non-Goals
