@@ -171,13 +171,47 @@ Not work yet — each needs a call before anything is built.
 - **D7 — Inventory procedure.** *Deferred.* Close to topology but not
   topology itself: the procedure depends on the storage type (a channel
   is in practice only countable at zero crossing), yet it is process
-  configuration, not structure. Open: which repo owns it; which
-  procedures (key-date, cycle/permanent, zero crossing, putaway count,
-  statistical sample); whether count rules (blind count, recount
-  tolerance) belong in it; a controller-delegated count for automated
-  storage. Approval of count differences is a process
-  (`OrderOrchestration-as-Code`). Legal basis in Germany: HGB §§ 240,
-  241.
+  configuration, not structure. Approval of count differences is a
+  process (`OrderOrchestration-as-Code`). Legal basis in Germany: HGB
+  § 240 (duty to take inventory) and § 241 (simplifications: sample,
+  permanent, advanced or postponed key-date inventory); the exact time
+  limits of § 241 have not been checked here.
+
+  Inventory types to cover:
+
+  | Type | Trigger | Typical use |
+  |---|---|---|
+  | Key-date (`key_date`) | Fixed date, whole area | Manual storage, block storage |
+  | Permanent / cycle (`cycle`) | Interval; every point at least once per period | Rack storage, high-bay rack |
+  | Zero crossing (`zero_crossing`) | A point or channel becomes empty | Channel storage, automated storage |
+  | Putaway count (`putaway_count`) | First putaway onto an empty point | AS/RS, shuttle |
+  | Statistical sample (`sample`) | Statistical selection | Large warehouses; needs auditor approval - leave out at first |
+  | Controller count (`delegate_to_controller`) | The controller counts itself (camera, weighing) | AutoStore, AS/RS - analogous to the `DELEGATE_TO_CONTROLLER` placement strategy |
+
+  Proposal (draft, not decided): a `strategies/inventory.yaml` next to
+  `replenishment.yaml`, referencing the existing `activity_area`s with
+  `activity: physical_inventory`:
+
+  ```yaml
+  inventory_procedures:
+    - id: INV_HBR
+      activity_area: INV_AREA_HBR
+      procedures:
+        - type: zero_crossing
+        - type: cycle
+          interval: { value: 12, unit: "month" }   # every point at least once
+      count:
+        blind: true                  # counter does not see the book quantity
+        recount_tolerance_percent: 2 # deviation above this triggers a recount
+  ```
+
+  Open questions:
+  1. Owner repo: `Topology-as-Code` (strategies/), `Allocation-as-Code`,
+     or a repo of its own?
+  2. Which procedures are needed first; is `sample` needed now?
+  3. Do count rules (blind count, recount tolerance) belong here, or
+     only procedure and area?
+  4. Is `delegate_to_controller` a procedure of its own?
 
 ## E. Unmodeled domains
 
