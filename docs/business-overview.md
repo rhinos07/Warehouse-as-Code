@@ -37,10 +37,10 @@ The overall "map" is split into four areas. Each answers its own question:
 
 | Building block | Answers the question | In plain terms |
 |---|---|---|
-| **Topology-as-Code** | How is our warehouse laid out? | Racks, aisles, automation cells (e.g. an AutoStore grid), doors – and which goods movements between which areas are allowed at all. |
-| **MasterData-as-Code** | What do we actually stock? | Which items exist, how they're packaged (piece → case → pallet), who supplies them, whether they're seasonal or being discontinued. |
-| **OrderOrchestration-as-Code** | How does an order get worked through? | The rules for how an incoming order gets broken into sub-orders, and what has to happen for it to count as done. |
-| **Allocation-as-Code** | Where do we look first when we need stock? | The order in which warehouse areas get searched for matching stock, and the principle used to pick among matches (e.g. oldest shelf life first). |
+| **Topology-as-Code** | How is our warehouse laid out? | Racks, aisles, automation cells (e.g. an AutoStore grid), doors – and which goods movements between which areas are allowed at all. Also the rack statics (how much a bay and a shelf may carry), the travel order through the aisles and the check codes on the location labels. |
+| **MasterData-as-Code** | What do we actually stock? | Which items exist, how they're packaged (piece → case → pallet), their barcodes, whether lot, best-before date or serial number must be recorded, how they must be stored (ambient, chilled, frozen), who owns the stock, who supplies them, whether they're seasonal or being discontinued. |
+| **OrderOrchestration-as-Code** | How does an order get worked through? | The rules for how an incoming order gets broken into sub-orders, what has to happen for it to count as done – and what happens when stock is missing (deliver later, deliver what's there, wait, or cancel the line). |
+| **Allocation-as-Code** | Where do we look first when we need stock – and where does new stock go? | The order in which warehouse areas get searched for matching stock and the principle used to pick among matches (e.g. oldest shelf life first). Also the putaway rules for arriving goods, areas reserved for one stock owner, fixed pick locations per item, and target quantities per item and area. |
 
 These four building blocks build on each other. An order (orchestration)
 needs an item (master data), which gets searched for somewhere in the
@@ -94,6 +94,60 @@ Every arrow in this picture corresponds to a rule stored somewhere in one
 of the four building blocks – but nobody has to read the rule itself to
 understand the overall flow.
 
+## What a planner can describe today
+
+The building blocks above are kept short on purpose. In more detail, a
+logistics planner can already describe the following – each as a rule
+that gets checked automatically before it reaches the live system:
+
+**The warehouse (Topology)**
+- Storage areas with their racks, aisles, levels and individual
+  locations, generated from a grid rather than typed in one by one.
+- Rack statics: how much one bay (the space between two uprights) and one
+  shelf may carry in total. The live system weighs the goods and compares
+  the measured weight against these limits – a calculated weight is
+  deliberately not used.
+- The basis for travel paths: the order of the aisles and of the
+  locations within an aisle, and from which ends an aisle can be entered.
+  Which direction a picker actually walks is decided live.
+- The check code printed on each location label, maintained per location
+  (typically loaded by a script, e.g. from the label printing system).
+- Storage conditions per area (ambient, chilled, frozen), so cold goods
+  can only be planned into cold areas.
+
+**The items (MasterData)**
+- Packaging levels with barcodes and the load carrier used per level.
+- Whether lot, best-before date or serial number must be captured, and
+  minimum remaining shelf life at goods receipt.
+- The stock owner, for warehouses that hold stock of several customers
+  (e.g. a logistics service provider).
+
+**The orders (OrderOrchestration)**
+- How orders are split (e.g. by storage technology) and merged again.
+- What happens on a shortage, per order type, and which alternatives a
+  single order may choose.
+
+**Stock search and putaway (Allocation)**
+- Where to search first, and by which principle.
+- Where arriving goods should go: e.g. next free location, next to
+  existing stock of the same item, close to the outfeed.
+- Areas reserved for one stock owner, fixed pick locations with
+  replenishment thresholds, and target quantities per item and area
+  (typically the result of a slotting analysis, loaded by a script).
+
+## Putting a site together
+
+Each building block is maintained on its own. A short **site manifest**
+per location (in this repo) says which parts belong together: which
+warehouse layout, which item master, which order types – and which
+building each order type serves.
+
+Every change is then checked automatically across all four building
+blocks, for example: does every target an order type names exist in its
+building? Does every item a rule mentions exist in the item master? This
+check also runs once a day, because a change in one building block can
+break another without anyone touching it.
+
 ## Why split this across four separate "blueprints"?
 
 Because the four questions need answering at different frequencies, by
@@ -121,7 +175,8 @@ these repos do **not** show:
 - which concrete task is currently assigned to which worker or vehicle,
 - workforce scheduling,
 - yard management (trucks, dock doors, time slots),
-- optimizing which item sits in the most efficient location (slotting).
+- optimizing which item sits in the most efficient location (slotting) –
+  only its result (target quantities per item and area) can be stored.
 
 All of that lives in the real, running warehouse management system – not
 in these repos. That's a deliberate decision, not a gap.
@@ -130,13 +185,17 @@ in these repos. That's a deliberate decision, not a gap.
 
 - So far there's only the **search strategy** for stock
   (Allocation-as-Code) – the actual stock and reservation state itself
-  isn't captured anywhere in this repo family yet.
+  isn't captured anywhere in this repo family, by design.
 - **Wave/batch planning** (how multiple orders get bundled and worked
   through together) hasn't been touched at all yet.
-- There's no automatic cross-check yet between the four building blocks
-  (e.g.: does an order really reference an item that exists in the master
-  data?). A separate test project currently only spot-checks this by
-  actually "playing through" the rules.
+- The automatic cross-check checks that references exist (see above).
+  Deeper consistency rules – e.g. "an item that must be stored chilled
+  must not be put away into an ambient area" – are written down but not
+  checked yet.
+- Recorded and deliberately deferred until there is a concrete need:
+  operating mode per direction (inbound only / outbound only, a live
+  switch), the inventory procedure, ABC classification, bills of material
+  and kits, and rules per supplier or customer.
 
 ## Where can I find more?
 

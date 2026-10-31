@@ -51,7 +51,7 @@ The artifact gives you:
 - `target.{wms_type, tenant, facility, building}` — where this applies.
 - `import_policy.{mode, removal_policy, unmanaged_objects, require_plan_approval}` — how to apply it (see below).
 - `artifact.content_hash` (`sha256:...`) — the idempotency key. Same hash in, no-op.
-- `entities` — every building-owned entity (storage types/points, sections, activity areas, work centers, doors, controllers, reporting points, equipment, telegram actions, `can_edge` connectivity, lanes/conveyor topology, movement rules, replenishment strategies), each keyed by type, each item at least `{id: ...}`.
+- `entities` — every building-owned entity (storage types/points, channels, sections, activity areas, work centers, doors, controllers, reporting points, equipment, telegram actions, `can_edge` connectivity, lanes/conveyor topology, movement rules, replenishment strategies, and - when configured - `bay`/`shelf` load groups and `route_aisle`s), each keyed by type, each item at least `{id: ...}`.
 
 Import loop:
 
@@ -66,8 +66,31 @@ Import loop:
 4. If `require_plan_approval` is true, a human approves the plan output
    before `reconcile` mode applies it.
 
+**Per storage point, when configured** (all optional, all static):
+
+- `bay` / `shelf` — the field and shelf the point belongs to. The `bay`
+  and `shelf` entities carry `max_weight` (field load, shelf load). Sum
+  the **measured** (scale) weight of the load units on a bay or shelf and
+  block further putaway when the limit would be exceeded. Do not compute
+  the weight from item master data - the spec deliberately relies on the
+  scale.
+- `route_aisle` / `route_position` — the travel-path sort key. The
+  `route_aisle` entity states its usable `entries` (`start`, `end` or
+  both) and a default `sequence`. Your router picks the entry end per
+  tour and sorts `route_position` ascending from `start`, descending from
+  `end`. The level is not part of the key.
+- `scan_code` — the check code on the location label; compare it with
+  the scanned value to confirm the location.
+- `storage_condition` (`ambient`/`chilled`/`frozen`) — matches the
+  item's storage condition from MasterData.
+
+Catalogs owned by `MasterData-as-Code` (load unit types, storage
+conditions, UOM) appear in `Topology-as-Code/elements/` as pinned copies
+(`elements/catalog_sources.yaml`); treat MasterData as their source.
+
 What the artifact does **not** give you: current occupancy, current
-equipment availability, anything live. `storage_point` is a place goods
+equipment availability, the current operating mode of an aisle or
+machine (inbound only / outbound only - a runtime switch), anything live. `storage_point` is a place goods
 *may* go, not a record of what's there right now — that state is yours to
 track in your own database from day one.
 
@@ -98,7 +121,19 @@ value, falling back to its category's `default_attributes.default_uom`)
 — don't re-derive that yourself.
 
 Build an item resolver: `item_id -> {dimensions, weight, hazmat_classes,
-default_uom}`. Use it twice: to validate `material_request.item_id` at
+default_uom, tracking, owner, storage_condition}`, plus the packaging
+levels with their barcodes and load unit type.
+
+- `tracking` (resolved field by field from the category) says what to
+  capture: `lot` (`none`/`optional`/`required`), `expiry`
+  (`tracked`, `min_remaining_at_receipt_days`, `total_shelf_life_days`),
+  `serial.capture` (`none`/`outbound`/`always`). Enforce it at goods
+  receipt and, for serials, at pick/pack.
+- Barcodes are unique per owner across the company; a scan resolves to
+  item **and** packaging level, so the quantity follows from the level.
+- `owner` is set only in multi-owner warehouses (each item has exactly
+  one owner); stock of different owners must stay distinguishable in
+  your ledger. Use it twice: to validate `material_request.item_id` at
 order intake (§8), and to interpret quantities/UOM at pick and putaway
 time.
 
@@ -132,15 +167,17 @@ plus `transitions[].{from, to}`. Your engine's transition function must
 reject any `(from, to)` pair not listed there — raise, don't silently
 apply it.
 
-**Splitting — the one place this family deliberately leaves a gap for
-you.** `split_rule.condition` (`split-rule.schema.json`) references a
-*reason id* in `elements/split_reasons.yaml` — it is not an evaluable
-predicate. No schema anywhere says which rule(s) apply to a *given*
-order; that decision is explicitly runtime business logic, by design, not
-an omission. `WMS-POC` sidesteps this by taking an explicit list of rule
-ids as input to its `split()` call — a real engine needs an actual
-classifier (e.g. "does this line's item live in a zone tagged
-`AUTOSTORE_GRID`? → apply `SPLIT_TO_AUTOSTORE`").
+**Splitting.** `split_rule.condition` (`split-rule.schema.json`) names a
+*reason id* in `elements/split_reasons.yaml`; what selects and gates a
+rule is `split_rule.when`: `when.dimension_value` is the value of
+`split_by` the rule claims (e.g. a storage technology id from
+Topology's `storage_technologies`), `when.status` the status the order
+must have reached before the rule may fire (e.g. `receipt_confirmed` for
+inbound putaway). What stays runtime is resolving each position's actual
+value - which technology holds this stock is live inventory state - and
+partitioning the quantity across the matched rules. `WMS-POC`'s
+`Engine.split()` takes exactly that as input: `line_id ->
+{dimension_value: quantity}`.
 
 When you apply a matched `split_rule`, for each resulting sub-order:
 
@@ -181,50 +218,60 @@ re-evaluate its parent's `completion_rule`s (`completion-rule.schema.json`):
      that inherits the gapped child's `order_target` unchanged; which
      system/route executes it is a fresh runtime allocation decision, not
      declared anywhere in this repo.
-5. **Guard against re-firing.** No schema field stops a rule from matching
-   twice (e.g. a spawned consolidation order later reaching its own
-   watched status). Keep a `(parent_id, rule_id)` fired-set until this is
-   fixed upstream — `WMS-POC` does exactly this as a POC-level guard, not
-   a schema fix.
+5. **A rule fires at most once per parent** - normative in
+   `completion-rule.schema.json`. Record each `(parent_id, rule_id)` that
+   has fired and never re-evaluate it (`WMS-POC`'s `_fired_rules`).
+6. `spawn_order` with `supersedes_parent: true` also moves the parent to
+   the reserved terminal status `superseded`: the parent is replaced, not
+   fulfilled.
 
-**Known incompleteness to design around**, taken directly from the
-sibling repos' own "Next Steps"/"Findings" sections — these are open
-by design, not bugs you're expected to work around silently:
+**Shortage.** When a line cannot be covered because no stock is available
+anywhere (after any `reallocate_remainder`), apply the order type's
+`strategies/shortage_policy.yaml`: `backorder`, `ship_partial`, `hold` or
+`cancel_line`. An order may override the default in its header
+(`shortage_policy`), but only with a value from `allowed_overrides` -
+reject the order otherwise. `allow_substitution: true` lets you first
+fill the shortage with the item's `lifecycle.substitute_item_id`.
 
-- No `split_rule` trigger-status concept yet. A split that can only be
-  decided *after* some status (e.g. inbound putaway, only after
-  `receipt_confirmed`) has no declarative way to express that gate — your
-  engine has to enforce it itself for now.
-- No declarative quantity-partitioning across sub-orders. Do **not** copy
-  `WMS-POC`'s simplification of cloning the full parent quantity onto
-  every child — a real engine must actually partition confirmed quantity
-  across siblings.
-- A top-level order with no matching `update_parent_status` rule simply
-  never advances past its initial status. Decide deliberately, per
-  order_type, whether that's acceptable or needs a default rule — it
-  won't happen automatically.
+**Known incompleteness to design around:**
 
-## 6. Allocation-as-Code: executing the search
+- The quantity partition across sub-orders is runtime input; nothing
+  declarative produces those numbers (by design).
+- A top-level order with neither an `update_parent_status` rule nor a
+  superseding `spawn_order` never advances past its initial status.
+  Decide per order type whether that is acceptable.
 
-`search-rule.schema.json` gives you `applies_to` (item_id is more
-specific than category, category more specific than the building's
-default rule — the repo has **no declared tie-break** for two rules of
-equal specificity, so decide and document your own precedence) and an
-ordered `steps[]`, each `{zone: {type, id}, selection_strategy,
-constraints}`.
+## 6. Allocation-as-Code: executing the search and putaway
 
-Given a `material_request`, your engine:
+**Precedence.** Every rule kind with an `applies_to` scope uses the same
+precedence (`schemas/applies-to.schema.json`, `tools/precedence.py`):
+`item_id` > `owner` + `category` > `owner` > `category` > the default
+rule without `applies_to`. Two rules with the same scope are rejected by
+validation, so there is always exactly one winner.
 
-1. Resolves the applicable `search_rule` (item → category → default).
-2. Executes `steps` in order against your **own live inventory ledger**
-   — nothing in this repo holds actual stock — until enough quantity is
-   found.
-3. Within each step: filter candidates in that `zone` by `constraints`
-   (`exclude_quality_hold`, `min_remaining_shelf_life_days`), then order
-   them by `selection_strategy` (`elements/selection_strategies.yaml`:
-   `FIFO`, `FEFO`, `LIFO`, `NEAREST_TO_TARGET`,
-   `LOWEST_QUANTITY_FIRST` — five concrete, directly implementable sort
-   keys, not left open to interpretation).
+**Search** (`search-rule.schema.json`): ordered `steps[]`, each
+`{zone: {type, id}, selection_strategy, constraints}`. Given a
+`material_request`, resolve the applicable rule, then execute the steps
+in order against your **own live inventory ledger** until enough
+quantity is found. Within a step, filter candidates by `constraints`
+(`exclude_quality_hold`, `min_remaining_shelf_life_days`), then order
+them by `selection_strategy` (`FIFO`, `FEFO`, `LIFO`,
+`NEAREST_TO_TARGET`, `LOWEST_QUANTITY_FIRST`).
+
+**Putaway** (`putaway-rule.schema.json`): the inbound counterpart. Ordered
+steps, each a zone plus a `placement_strategy` (`NEXT_EMPTY`,
+`ADD_TO_EXISTING`, `NEAREST_TO_SOURCE`, `NEAREST_TO_OUTFEED`,
+`SPREAD_ACROSS_AISLES`, `LOWEST_LEVEL_FIRST`, `DELEGATE_TO_CONTROLLER`,
+`FIXED_BIN_FIRST`) and step constraints (`load_unit_types`,
+`allow_mixed_items`/`_lots`/`_owners`, `max_fill_percent`). Also honour:
+
+- `structure/owner_zones.yaml` — zones reserved for listed owners;
+- `strategies/fixed_bin_assignments.yaml` — item → fixed place with
+  `min_qty`/`max_qty`/`max_pick_qty` and a `sequence`; these item-level
+  thresholds win over Topology's area-level `replenishment_strategy`;
+- `strategies/area_assignments.yaml` — item-level `min_qty`/`max_qty`
+  (optional `planned_qty`) for a zone **without** fixed places; also wins
+  over the area-level `replenishment_strategy`.
 
 Whether quantity found across multiple steps becomes a single pick or
 several sub-orders is `OrderOrchestration-as-Code`'s `split_rule`
@@ -242,29 +289,35 @@ live:
   controller, and its confirmed outcome).
 - Wave/batch planning (bundling multiple orders for joint execution).
 - Actual quantity partitioning on split (§5).
-- Actual search execution against real stock (§6).
+- Actual search and putaway execution against real stock (§6).
+- Summing measured weights per bay and shelf, choosing the aisle entry
+  end per tour, and the current operating mode of aisles and machines
+  (§3).
+- Executing the shortage policy (§5).
 - Workforce and yard management, if your scope includes them at all.
 
-## 8. Cross-repo referential integrity — nobody else checks this for you
+## 8. Cross-repo referential integrity
 
-Every one of the four repos' own `tools/validate.py` checks references
-*within* that repo only; each README says explicitly that cross-repo
-references are unchecked. Your import/deploy pipeline is the only place
-these can be caught before they become a runtime failure:
+Every repo's own `tools/validate.py` checks references *within* that
+repo only. Across repos, `Warehouse-as-Code` now checks them per site:
+a **site manifest** (`sites/<customer>/<facility>.yaml`) names the
+Topology and Allocation facility, the MasterData company and the order
+types with the buildings each serves; `tools/check_sites.py` checks the
+composition and these ids, in CI on every change and daily:
 
-| Reference | Must resolve in | Note |
+| Reference | Must resolve in | Checked by `check_sites.py` |
 |---|---|---|
-| `order-header.target.id` / `order_target.id` | `Topology-as-Code` compiled artifact (door/work_center/activity_area) | Check **reachability**, not just existence — an id can exist without any `movement_rule` ever routing to it under `explicit_only` (a real bug this family had, fixed upstream, see `Topology-as-Code`'s own "Next Steps"). |
-| `order-position.material_request.item_id` | `MasterData-as-Code` compiled item index | |
-| `order-position.load_unit_request.load_unit_type` | `Topology-as-Code`'s `elements/load_unit_types.yaml` | |
-| `search_rule.steps[].zone.id` | `Topology-as-Code` compiled artifact (storage_type/activity_area) | |
-| `search_rule.applies_to.{category,item_id}` | `MasterData-as-Code` compiled category/item ids | |
+| Order-type targets (`target_override`, `order_target_override`, `spawn_target`, …) | Topology door/work_center/activity_area of the buildings the order type serves | yes |
+| `workflow_trigger.trigger` | Topology `elements/process_types.yaml` | yes |
+| Allocation `zone.id`, `storage_point` | Topology storage_type/activity_area/storage_point of the same-named building | yes |
+| Allocation `item_id`, `category`, `owner` | MasterData company | yes |
+| `order-position.material_request.item_id` (live orders) | MasterData items | no - runtime data; check at order intake |
+| Consistency rules R1–R12 (e.g. FEFO on an item without tracked expiry) | MasterData / Topology | not yet (Warehouse-as-Code backlog C1a) |
 
-`WMS-POC/poc/topology_ref.py` and `poc/masterdata_ref.py` show a minimal,
-working version of the existence checks (build an id index from the
-compiled artifacts, flag anything an order references that isn't in it).
-Treat that as the floor, not the ceiling — extend it to reachability
-where §3 already told you it matters.
+Your import/deploy pipeline should still run the same checks against the
+exact revisions it imports, and add **reachability** where §3 says it
+matters: an id can exist without any `movement_rule` routing to it under
+`explicit_only`.
 
 ## 9. Suggested build order
 
@@ -272,11 +325,12 @@ where §3 already told you it matters.
 2. MasterData resolver, including lifecycle-rule application.
 3. Order engine: header/position shape, status machine, split (with your own classifier), workflow_trigger, completion_rule (with `source_split_rules` scoping and a re-fire guard).
 4. Allocation search executor against your real inventory ledger.
-5. A cross-repo validation gate wired into CI/deploy — not just local dev.
+5. A cross-repo validation gate wired into your deploy, reusing the
+   site manifest and `Warehouse-as-Code/tools/check_sites.py`.
 
 This mirrors what `WMS-POC` already demonstrates end to end: steps 1–3
-fully, step 4 not attempted (it has no real search executor), step 5
-partially (existence checks only). Reading `poc/engine.py` and
+fully (it does not yet read `putaway_rule`), step 4 only as a toy search
+that does not reserve, step 5 as existence checks. Reading `poc/engine.py` and
 `poc/cli.py` alongside this guide is the fastest way to see the pattern
 actually running — it's explicitly a toy, not something to deploy, but
 the shape is the same shape you need.

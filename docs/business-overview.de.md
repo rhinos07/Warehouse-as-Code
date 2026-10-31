@@ -39,10 +39,10 @@ eine eigene Frage:
 
 | Baustein | Beantwortet die Frage | In einfachen Worten |
 |---|---|---|
-| **Topology-as-Code** | Wie ist unser Lager aufgebaut? | Regale, Gänge, Automatikzellen (z. B. ein AutoStore-Raster), Türen – und welche Warenbewegungen zwischen welchen Bereichen grundsätzlich erlaubt sind. |
-| **MasterData-as-Code** | Was lagern wir überhaupt? | Welche Artikel es gibt, wie sie verpackt sind (Stück → Karton → Palette), wer sie liefert, ob sie saisonal oder auslaufend sind. |
-| **OrderOrchestration-as-Code** | Wie wird ein Auftrag abgearbeitet? | Nach welchen Regeln ein eingehender Auftrag in Teilaufträge zerlegt wird und was passieren muss, damit er als erledigt gilt. |
-| **Allocation-as-Code** | Wo schauen wir zuerst nach, wenn wir Ware brauchen? | In welcher Reihenfolge Lagerbereiche nach passendem Bestand durchsucht werden und nach welchem Prinzip ausgewählt wird (z. B. älteste Haltbarkeit zuerst). |
+| **Topology-as-Code** | Wie ist unser Lager aufgebaut? | Regale, Gänge, Automatikzellen (z. B. ein AutoStore-Raster), Türen – und welche Warenbewegungen zwischen welchen Bereichen grundsätzlich erlaubt sind. Außerdem die Regalstatik (was ein Feld und ein Fachboden tragen dürfen), die Reihenfolge der Wege durch die Gänge und die Prüfcodes auf den Platzetiketten. |
+| **MasterData-as-Code** | Was lagern wir überhaupt? | Welche Artikel es gibt, wie sie verpackt sind (Stück → Karton → Palette), ihre Barcodes, ob Charge, Mindesthaltbarkeitsdatum oder Seriennummer erfasst werden müssen, wie sie gelagert werden müssen (normal, gekühlt, tiefgekühlt), wem der Bestand gehört, wer sie liefert, ob sie saisonal oder auslaufend sind. |
+| **OrderOrchestration-as-Code** | Wie wird ein Auftrag abgearbeitet? | Nach welchen Regeln ein eingehender Auftrag in Teilaufträge zerlegt wird, was passieren muss, damit er als erledigt gilt – und was bei fehlender Ware geschieht (nachliefern, Vorhandenes liefern, warten oder die Position stornieren). |
+| **Allocation-as-Code** | Wo schauen wir zuerst nach, wenn wir Ware brauchen – und wohin kommt neue Ware? | In welcher Reihenfolge Lagerbereiche nach passendem Bestand durchsucht werden und nach welchem Prinzip ausgewählt wird (z. B. älteste Haltbarkeit zuerst). Außerdem die Einlagerregeln für ankommende Ware, Bereiche, die einem Bestandseigentümer vorbehalten sind, feste Kommissionierplätze je Artikel und Sollmengen je Artikel und Bereich. |
 
 Diese vier Bausteine bauen aufeinander auf. Ein Auftrag (Orchestrierung)
 braucht einen Artikel (Stammdaten), der irgendwo im Lager gesucht wird
@@ -97,6 +97,62 @@ Jeder Pfeil in diesem Bild entspricht einer Regel, die irgendwo in einem
 der vier Bausteine hinterlegt ist – aber niemand muss dafür die Regel
 selbst lesen, um den Gesamtablauf zu verstehen.
 
+## Was ein Planer heute beschreiben kann
+
+Die Bausteine oben sind bewusst kurz gehalten. Genauer kann ein
+Logistikplaner heute schon Folgendes beschreiben – jeweils als Regel, die
+automatisch geprüft wird, bevor sie im laufenden System ankommt:
+
+**Das Lager (Topology)**
+- Lagerbereiche mit Regalen, Gängen, Ebenen und einzelnen Plätzen, aus
+  einem Raster erzeugt statt einzeln eingetippt.
+- Regalstatik: wie viel ein Feld (der Raum zwischen zwei Rahmen) und ein
+  Fachboden insgesamt tragen dürfen. Das laufende System wiegt die Ware
+  und vergleicht das gewogene Gewicht mit diesen Grenzen – ein
+  berechnetes Gewicht wird bewusst nicht verwendet.
+- Die Grundlage für die Wege: die Reihenfolge der Gänge und der Plätze im
+  Gang und von welchen Enden ein Gang befahren werden kann. In welche
+  Richtung tatsächlich gelaufen wird, entscheidet das laufende System.
+- Den Prüfcode auf jedem Platzetikett, je Platz gepflegt (meist per Script
+  eingespielt, z. B. aus dem Etikettendruck).
+- Lagerbedingungen je Bereich (normal, gekühlt, tiefgekühlt), damit
+  Kühlware nur in Kühlbereiche geplant wird.
+
+**Die Artikel (MasterData)**
+- Verpackungsstufen mit Barcodes und dem Ladungsträger je Stufe.
+- Ob Charge, Mindesthaltbarkeitsdatum oder Seriennummer erfasst werden
+  müssen, und die Mindestrestlaufzeit beim Wareneingang.
+- Den Bestandseigentümer, für Lager mit Ware mehrerer Kunden (z. B. bei
+  einem Logistikdienstleister).
+
+**Die Aufträge (OrderOrchestration)**
+- Wie Aufträge zerlegt (z. B. nach Lagertechnik) und wieder
+  zusammengeführt werden.
+- Was bei Fehlmengen passiert, je Auftragsart, und welche Alternativen ein
+  einzelner Auftrag wählen darf.
+
+**Bestandssuche und Einlagerung (Allocation)**
+- Wo zuerst gesucht wird und nach welchem Prinzip.
+- Wohin ankommende Ware soll: z. B. nächster freier Platz, neben vorhandenen
+  Bestand desselben Artikels, nahe am Auslagerpunkt.
+- Bereiche, die einem Bestandseigentümer vorbehalten sind, feste
+  Kommissionierplätze mit Nachschubgrenzen und Sollmengen je Artikel und
+  Bereich (meist das Ergebnis einer Slotting-Analyse, per Script
+  eingespielt).
+
+## Einen Standort zusammensetzen
+
+Jeder Baustein wird für sich gepflegt. Ein kurzes **Standort-Manifest** je
+Standort (in diesem Repo) sagt, welche Teile zusammengehören: welcher
+Lageraufbau, welche Artikelstammdaten, welche Auftragsarten – und welches
+Gebäude jede Auftragsart bedient.
+
+Jede Änderung wird dann automatisch über alle vier Bausteine geprüft, zum
+Beispiel: Gibt es jedes Ziel, das eine Auftragsart nennt, in ihrem
+Gebäude? Gibt es jeden Artikel, den eine Regel nennt, in den Stammdaten?
+Diese Prüfung läuft zusätzlich einmal täglich, weil eine Änderung in einem
+Baustein einen anderen brechen kann, ohne dass dort jemand etwas ändert.
+
 ## Warum ist das auf vier getrennte "Baupläne" verteilt?
 
 Weil die vier Fragen unterschiedlich oft beantwortet werden müssen und von
@@ -127,22 +183,28 @@ diese Repos **nicht**:
 - Personaleinsatzplanung,
 - Hofmanagement (Lkw, Rampen, Zeitfenster),
 - die Optimierung, welcher Artikel an welchem Platz am effizientesten
-  liegt (Slotting).
+  liegt (Slotting) – nur ihr Ergebnis (Sollmengen je Artikel und
+  Bereich) kann hinterlegt werden.
 
 All das lebt im echten, laufenden Lagerverwaltungssystem – nicht in diesen
 Repos. Das ist eine bewusste Entscheidung, keine Lücke.
 
 ## Woran wird noch gearbeitet?
 
-- Es gibt bisher nur die **Such-Strategie** für Bestand (Allocation-as-Code)
-  – der tatsächliche Bestands- und Reservierungs-Zustand selbst ist noch
+- Es gibt nur die **Such-Strategie** für Bestand (Allocation-as-Code) – der
+  tatsächliche Bestands- und Reservierungs-Zustand selbst ist bewusst
   nirgends in dieser Repo-Familie abgebildet.
 - Die **Wellen-/Batch-Planung** (wie mehrere Aufträge gebündelt
   abgearbeitet werden) ist noch gar nicht angefasst.
-- Es gibt noch keinen automatischen Abgleich zwischen den vier Bausteinen
-  (z. B.: verweist ein Auftrag wirklich auf einen Artikel, den es in den
-  Stammdaten auch gibt?). Ein separates Testprojekt prüft das bisher nur
-  stichprobenartig, indem es die Regeln probeweise tatsächlich "durchspielt".
+- Der automatische Abgleich prüft, ob Verweise existieren (siehe oben).
+  Tiefere Konsistenzregeln – z. B. "ein Artikel, der gekühlt gelagert
+  werden muss, darf nicht in einen normal temperierten Bereich
+  eingelagert werden" – sind aufgeschrieben, werden aber noch nicht
+  geprüft.
+- Aufgeschrieben und bewusst zurückgestellt, bis es einen konkreten
+  Bedarf gibt: Betriebsart je Richtung (nur Einlagern / nur Auslagern, im
+  Betrieb umschaltbar), das Inventurverfahren, ABC-Klassifizierung,
+  Stücklisten und Kits sowie Regeln je Lieferant oder Kunde.
 
 ## Wo finde ich mehr?
 
