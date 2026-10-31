@@ -27,6 +27,13 @@ Implemented here:
   R8   fixed bin whose place does not accept the load unit of the item's
        packaging level in that uom (error)
   R9   fixed bin uom that the item's packaging does not define (error)
+  R6   putaway rule scoped to one item with a step into a zone reserved
+       for other owners (error: that step can never be used)
+  R10  fixed place in a zone reserved for other owners (error)
+  R12  shortage policy allows substitution, but no item has a substitute
+       (warning), or a substitute id is unknown (error)
+  R7 (owner unknown to the company) is covered by the id checks in
+       cross_refs.py.
 """
 
 import importlib.util
@@ -259,3 +266,93 @@ def check_fixed_bins(allocation: Path, entities: dict[str, list[dict]], items: l
         if load_unit and allowed and load_unit not in allowed:
             findings.append(("error", f"{where}: R8 the item is stored as '{load_unit}' in uom '{uom}', the place accepts only {', '.join(allowed)}"))
     return [(level, f"{allocation}: {message}") for level, message in findings]
+
+
+def reserved_zones(allocation: Path) -> dict[tuple[str, str], set[str]]:
+    """(zone type, zone id) -> owners allowed, from structure/owner_zones.yaml."""
+    _, data = strategy_file(allocation, "owner_zones.yaml")
+    reserved: dict[tuple[str, str], set[str]] = {}
+    for entry in data.get("owner_zones", []) or []:
+        zone = entry.get("zone") or {}
+        reserved.setdefault((zone.get("type"), zone.get("id")), set()).update(entry.get("owners", []) or [])
+    return reserved
+
+
+def point_zones(point: dict, entities: dict[str, list[dict]]) -> set[tuple[str, str]]:
+    """Zones a storage point belongs to: its storage type and every
+    activity area that draws bins from its storage type or section."""
+    zones = {("storage_type", point.get("storage_type"))}
+    for area in entities.get("activity_area", []):
+        sources = set(area.get("bins_from", []))
+        if point.get("storage_type") in sources or point.get("section") in sources:
+            zones.add(("activity_area", area["id"]))
+    return zones
+
+
+def check_owner_rules(allocation: Path, entities: dict[str, list[dict]], items: list[dict]) -> list[tuple[str, str]]:
+    """R6 and R10 for one building."""
+    reserved = reserved_zones(allocation)
+    if not reserved:
+        return []
+    by_id = {item.get("id"): item for item in items}
+    findings = []
+
+    path, rules = putaway_rules(allocation)
+    for rule in rules or []:
+        item = by_id.get((rule.get("applies_to") or {}).get("item_id"))
+        if item is None:
+            continue  # owner and category scopes are checked by Allocation itself
+        for index, step in enumerate(rule.get("steps", [])):
+            zone = step.get("zone") or {}
+            owners = reserved.get((zone.get("type"), zone.get("id")))
+            if owners is not None and item.get("owner") not in owners:
+                findings.append(("error", f"{path.name} putaway_rule '{rule.get('id')}' steps[{index}]: R6 {zone.get('type')} '{zone.get('id')}' is reserved for {', '.join(sorted(owners))}, item '{item.get('id')}' belongs to '{item.get('owner')}'"))
+
+    fixed_path, data = strategy_file(allocation, "fixed_bin_assignments.yaml")
+    points = {p["id"]: p for p in entities.get("storage_point", [])}
+    for index, entry in enumerate(data.get("fixed_bin_assignments", []) or []):
+        item = by_id.get(entry.get("item_id"))
+        point = points.get(entry.get("storage_point"))
+        if item is None or point is None:
+            continue
+        for zone in sorted(point_zones(point, entities)):
+            owners = reserved.get(zone)
+            if owners is not None and item.get("owner") not in owners:
+                findings.append(("error", f"{fixed_path.name} fixed_bin_assignments[{index}]: R10 place '{point['id']}' lies in {zone[0]} '{zone[1]}', reserved for {', '.join(sorted(owners))}; item '{item.get('id')}' belongs to '{item.get('owner')}'"))
+    return [(level, f"{allocation}: {message}") for level, message in findings]
+
+
+def substitutes(company: Path) -> dict[str, str]:
+    """item id -> substitute_item_id, from each category's lifecycle.yaml."""
+    data = (load_yaml(company) or {}).get("company", {}) or {}
+    result: dict[str, str] = {}
+    for ref in data.get("categories", []) or []:
+        category_file = company.parent / ref
+        category = (load_yaml(category_file) or {}).get("category", {}) or {}
+        for imported in category.get("imports", []) or []:
+            path = category_file.parent / imported
+            if path.name != "lifecycle.yaml" or not path.exists():
+                continue
+            for entry in (load_yaml(path) or {}).get("lifecycle", []) or []:
+                if entry.get("substitute_item_id"):
+                    result[entry.get("item_id")] = entry["substitute_item_id"]
+    return result
+
+
+def check_substitution(order_type: Path, company: Path, items: list[dict]) -> list[tuple[str, str]]:
+    """R12 for one order type."""
+    imports = (load_yaml(order_type) or {}).get("order_type", {}).get("imports", []) or []
+    policy_file = next((order_type.parent / ref for ref in imports if ref.endswith("shortage_policy.yaml")), None)
+    if policy_file is None or not policy_file.exists():
+        return []
+    policy = (load_yaml(policy_file) or {}).get("shortage_policy", {}) or {}
+    if not policy.get("allow_substitution"):
+        return []
+    known = {item.get("id") for item in items}
+    subs = substitutes(company)
+    if not subs:
+        return [("warning", f"{policy_file}: R12 allow_substitution is true, but no item of the company has a substitute_item_id")]
+    return [
+        ("error", f"{policy_file}: R12 item '{item_id}' names substitute '{sub}', which is not an item of the company")
+        for item_id, sub in sorted(subs.items()) if sub not in known
+    ]
