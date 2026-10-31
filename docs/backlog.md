@@ -168,6 +168,16 @@ Not work yet — each needs a call before anything is built.
   value. `Topology-as-Code` will later only state which modes an aisle
   or machine allows (e.g. `allowed_operating_modes` on `route_aisle` or
   `equipment`); the current mode is set at runtime.
+- **D7 — Inventory procedure.** *Deferred.* Close to topology but not
+  topology itself: the procedure depends on the storage type (a channel
+  is in practice only countable at zero crossing), yet it is process
+  configuration, not structure. Open: which repo owns it; which
+  procedures (key-date, cycle/permanent, zero crossing, putaway count,
+  statistical sample); whether count rules (blind count, recount
+  tolerance) belong in it; a controller-delegated count for automated
+  storage. Approval of count differences is a process
+  (`OrderOrchestration-as-Code`). Legal basis in Germany: HGB §§ 240,
+  241.
 
 ## E. Unmodeled domains
 
