@@ -142,11 +142,10 @@ Not work yet — each needs a call before anything is built.
   new `storage_conditions` catalog; `Topology-as-Code` keeps pinned
   copies (see C1, way A). `process_types` stays owned by
   `Topology-as-Code`.
-- **D1a — UOM vocabulary drift.** `Topology-as-Code`'s
-  `REPL_PICKFACE_A.unit_conversion` converts to `piece`, while
-  `MasterData-as-Code`'s `uom_types` catalog names the same unit `each`.
-  Same shape as D1: decide which repo owns UOM ids (MasterData is the
-  natural owner) and point Topology at it.
+- **D1a — UOM vocabulary drift.** *Closed:* `Topology-as-Code` now keeps
+  a pinned copy of `MasterData-as-Code`'s `uom_types.yaml` (C1b) and
+  checks `replenishment_strategy.unit_conversion` against it;
+  `REPL_PICKFACE_A` converts to `each` instead of `piece`.
 - **D2 — `Allocation-as-Code`'s `zone.type` excludes `work_center`**,
   although Topology's `work_center` can carry `storage_point_ref: true`
   (bookable WIP) and Orchestration's `target.type` already includes it. So
