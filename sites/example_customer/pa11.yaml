@@ -1,0 +1,24 @@
+# Site manifest: composes site PA11 of example_customer from the sibling
+# repos. Validates against schemas/site-manifest.schema.json; checked by
+# tools/check_sites.py. Paths are relative to each repo's root.
+
+api_version: "warehouse-as-code/v1"
+
+site:
+  id: "example_customer/pa11"
+  name: "Distribution Center PA11"
+
+  topology:
+    facility: "customers/example_customer/facilities/facility_pa11/facility.yaml"
+  allocation:
+    facility: "customers/example_customer/facilities/facility_pa11/facility.yaml"
+  masterdata:
+    company: "customers/example_customer/company.yaml"
+
+  order_types:
+    - path: "customers/example_customer/channels/web/order_types/b2c_standard/order_type.yaml"
+      buildings: ["hall_3"]
+    - path: "customers/example_customer/channels/web/order_types/b2c_multi_system/order_type.yaml"
+      buildings: ["hall_3"]
+    - path: "customers/example_customer/channels/inbound/order_types/inbound_advice/order_type.yaml"
+      buildings: ["hall_3"]

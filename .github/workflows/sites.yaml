@@ -1,0 +1,49 @@
+# Checks the site manifests under sites/ against the current main of the
+# four sibling repos (all public). Logic is portable to TeamCity:
+# check out the repos side by side, then run tools/check_sites.py.
+name: Check site manifests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Daily, because a sibling repo can break a manifest without a change here.
+    - cron: "17 5 * * *"
+
+jobs:
+  sites:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Warehouse-as-Code
+      - uses: actions/checkout@v4
+        with:
+          repository: rhinos07/Topology-as-Code
+          path: Topology-as-Code
+      - uses: actions/checkout@v4
+        with:
+          repository: rhinos07/Allocation-as-Code
+          path: Allocation-as-Code
+      - uses: actions/checkout@v4
+        with:
+          repository: rhinos07/MasterData-as-Code
+          path: MasterData-as-Code
+      - uses: actions/checkout@v4
+        with:
+          repository: rhinos07/OrderOrchestration-as-Code
+          path: OrderOrchestration-as-Code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r Warehouse-as-Code/requirements.txt
+
+      - name: Unit tests
+        working-directory: Warehouse-as-Code
+        run: python -m unittest discover -s tests -v
+
+      - name: Check site manifests
+        run: python Warehouse-as-Code/tools/check_sites.py --repos-dir .
