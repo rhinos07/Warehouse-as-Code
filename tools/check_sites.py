@@ -14,7 +14,9 @@ This tool checks the composition itself, not the content of each repo
   - every order type is reachable from the OrderOrchestration company and
     names only buildings the Topology facility has.
 
-Cross-repo id checks (targets, items, zones; backlog C1/C1a) build on this.
+Then, through the manifest, the cross-repo ids (tools/cross_refs.py):
+order-type targets and triggers, Allocation zones, storage points, items,
+categories and owners.
 
 Usage:
     python tools/check_sites.py                    # repos are siblings of this repo
@@ -28,6 +30,9 @@ from pathlib import Path
 
 import yaml
 from jsonschema import Draft7Validator
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cross_refs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = REPO_ROOT / "schemas" / "site-manifest.schema.json"
@@ -90,7 +95,7 @@ def orchestration_order_types(company: Path) -> set[Path]:
     return found
 
 
-def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str]) -> list[str]:
+def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids: bool = True) -> list[str]:
     errors: list[str] = []
     data = load_yaml(path)
     validator = Draft7Validator(json.loads(SCHEMA.read_text(encoding="utf-8")))
@@ -147,6 +152,25 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str]) -> list[s
             for building in entry["buildings"]:
                 if building not in topo:
                     errors.append(f"{path}: order_types[{i}] names building '{building}', not in the Topology facility")
+    if errors or not check_ids:
+        return errors  # ids are only meaningful once the composition holds
+
+    compiled = {}
+    for building, warehouse in topo.items():
+        try:
+            compiled[building] = cross_refs.compile_building(repos["topology"], warehouse)
+        except RuntimeError as error:
+            errors.append(f"{path}: {error}")
+    if errors:
+        return errors
+    known_process_types = cross_refs.process_types(repos["topology"])
+    md = cross_refs.masterdata_ids(repos["masterdata"] / site["masterdata"]["company"])
+    for entry in site["order_types"]:
+        errors += cross_refs.check_order_type(
+            repos["orchestration"] / entry["path"], entry["buildings"], compiled, known_process_types
+        )
+    for building, allocation in alloc.items():
+        errors += cross_refs.check_allocation_building(allocation, compiled.get(building, {}), md)
     return errors
 
 
