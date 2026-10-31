@@ -154,10 +154,11 @@ Real defects a runtime hits, not modelling preferences.
   their older checks. `OrderOrchestration-as-Code` has unit tests since
   2026-10-31 and runs `tools/validate_examples.py` in CI as well.
 - **C4 — ADR-0001's L3 layer is only half built.** Extension sidecars
-  exist in `Topology-as-Code` only, and their `entity_type` is itself a
-  fixed 17-value enum — so even the escape hatch cannot take a new entity
-  kind. Generalising the mechanism and opening that enum follows from
-  ADR-0001 but was never scheduled.
+  exist in `Topology-as-Code` only. *Half done:* their `entity_type` is
+  no longer a fixed enum - `tools/validate.py` takes the allowed types
+  from what the compiler emits, so new entity kinds (`bay`, `shelf`,
+  `route_aisle`, …) are extensible without a schema change. Still open:
+  sidecars for the other three repos, following ADR-0001.
 
 ## D. Open decisions
 
