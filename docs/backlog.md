@@ -94,11 +94,11 @@ Real defects a runtime hits, not modelling preferences.
   a zone list mixing conditions is fine, the runtime filters.
   *All implemented* (R7 as part of the id checks). R11 immediately found a
   real defect: `PUTAWAY_ITEM_003_LOT_PURE` sent the chilled ITEM_003 to
-  ambient HBR/BLK only (fixed in Allocation-as-Code). R6, R10 and R12
-  find nothing in `example_customer` (no owners, no substitution allowed);
-  they are covered by tests only. A multi-owner site needs a 3PL example
-  in Topology, Allocation and OrderOrchestration (MasterData already has
-  `example_3pl`).
+  ambient HBR/BLK only (fixed in Allocation-as-Code). The 3PL site
+  `sites/example_3pl/lp01.yaml` (two owners, reserved rack sections,
+  owner-scoped putaway, FEFO for one owner) exercises R1, R2, R6 and R10
+  on real example data; R12 is covered by tests (no example allows
+  substitution).
 
   | # | Rule | Repos | Severity | Origin |
   |---|---|---|---|---|

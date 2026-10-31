@@ -1,0 +1,21 @@
+# Site manifest: contract-logistics center LP01 of example_3pl, a 3PL
+# holding stock of two owners (owner_alpha, owner_beta) in one hall.
+# Exercises the owner rules (R6, R10) and FEFO rules (R1, R2) on real
+# example data. Validates against schemas/site-manifest.schema.json.
+
+api_version: "warehouse-as-code/v1"
+
+site:
+  id: "example_3pl/lp01"
+  name: "Contract Logistics Center LP01"
+
+  topology:
+    facility: "customers/example_3pl/facilities/facility_lp01/facility.yaml"
+  allocation:
+    facility: "customers/example_3pl/facilities/facility_lp01/facility.yaml"
+  masterdata:
+    company: "customers/example_3pl/company.yaml"
+
+  order_types:
+    - path: "customers/example_3pl/channels/b2b/order_types/b2b_outbound/order_type.yaml"
+      buildings: ["hall_1"]
