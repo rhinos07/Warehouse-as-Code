@@ -109,17 +109,18 @@ Real defects a runtime hits, not modelling preferences.
   could compare carrier `max_weight` + `tare_weight` against a storage
   point's `max_weight`; today it uses `max_weight` alone. Not changed yet
   because it may turn existing examples red.
-- **C2 — Schema strictness is uneven.** `Topology-as-Code` closes every
-  schema with `additionalProperties: false`; the others largely do not.
-  Whether that is deliberate (younger repos, still moving) or drift is
-  worth deciding rather than leaving implicit.
+- **C2 — Schema strictness is uneven.** `Topology-as-Code` closes almost
+  every schema with `additionalProperties: false`; the others close about
+  half. Whether that is deliberate (younger repos, still moving) or drift is
+  worth deciding rather than leaving implicit. Counted on 2026-10-31 as
+  schemas with a top-level `additionalProperties: false`:
 
-  | Repo | Closed schemas |
-  |---|---|
-  | `Topology-as-Code` | 22 / 22 |
-  | `OrderOrchestration-as-Code` | 7 / 12 |
-  | `MasterData-as-Code` | 4 / 9 |
-  | `Allocation-as-Code` | 2 / 6 |
+  | Repo | Closed schemas | Open |
+  |---|---|---|
+  | `Topology-as-Code` | 23 / 25 | `quantity` (definitions only, no top-level object), `uom-type` (pinned copy, must accept every source field) - both by design |
+  | `OrderOrchestration-as-Code` | 7 / 13 | `channel`, `company`, `order-header` (open on purpose, `fields.yaml` extends it), `order-type`, `split-dimension`, `split-reason` |
+  | `MasterData-as-Code` | 7 / 12 | `category`, `company`, `hazmat-class`, `packaging-material`, `uom-type` |
+  | `Allocation-as-Code` | 6 / 11 | `allocation`, `company`, `facility`, `placement-strategy`, `selection-strategy` |
 
 - **C3 — Test coverage is uneven.** `Topology-as-Code` has 7 test files.
   `Allocation-as-Code` and `MasterData-as-Code` now have unit tests for
@@ -229,8 +230,12 @@ From the Domain Map, plus one gap the Map does not currently name.
   *slotting optimization* as analytics, which is a different thing: a
   putaway destination has to be decided on every inbound. **Worth adding to
   the Domain Map as its own row rather than leaving it in the gap between
-  two entries.** *In progress:* `Allocation-as-Code` PR #3 adds
-  `putaway_rule` as the inbound counterpart of `search_rule`.
+  two entries.** *Closed as configuration:* `Allocation-as-Code` models
+  it with `putaway_rule` (#3, the inbound counterpart of `search_rule`,
+  with a placement-strategy catalog), owner zones (#4) and fixed-bin
+  assignments (#5); the Domain Map has its own row now. Still open on the
+  runtime side: `WMS-POC` Finding #10 - the POC does not read
+  `putaway_rule` yet and keeps its hardcoded inbound split.
 
 ## Suggested order
 
