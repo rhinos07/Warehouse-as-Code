@@ -191,7 +191,7 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     if errors:
         return errors  # consistency rules assume the ids resolve
 
-    # Consistency rules (backlog C1a): R11, R4, R5, R1-R3, R8, R9.
+    # Consistency rules (backlog C1a): R1-R6, R8-R12 (R7 is an id check).
     try:
         items = consistency_rules.compiled_items(repos["masterdata"], repos["masterdata"] / site["masterdata"]["company"])
     except RuntimeError as error:
@@ -199,7 +199,18 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     catalog = cross_refs.load_yaml(repos["masterdata"] / "elements" / "load_unit_types.yaml") or {}
     load_unit_types = {lu["id"] for lu in catalog.get("load_unit_types", [])}
     select_rule = consistency_rules.load_precedence(repos["allocation"])
-    packaging = consistency_rules.packaging_by_item(repos["masterdata"] / site["masterdata"]["company"])
+    company_file = repos["masterdata"] / site["masterdata"]["company"]
+    packaging = consistency_rules.packaging_by_item(company_file)
+    substitution_findings = []
+    for entry in site["order_types"]:
+        substitution_findings += consistency_rules.check_substitution(
+            repos["orchestration"] / entry["path"], company_file, items
+        )
+    for level, message in substitution_findings:
+        if level == "error":
+            errors.append(message)
+        elif warnings is not None:
+            warnings.append(message)
     for building, allocation in alloc.items():
         entities = entities_by_building.get(building, {})
         findings = (
@@ -207,6 +218,7 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
             + consistency_rules.check_search_rules(allocation, items, select_rule)
             + consistency_rules.check_mixed_lots(allocation, items, select_rule)
             + consistency_rules.check_fixed_bins(allocation, entities, items, packaging)
+            + consistency_rules.check_owner_rules(allocation, entities, items)
         )
         for level, message in findings:
             if level == "error":

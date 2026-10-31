@@ -197,5 +197,88 @@ class TrackingAndFixedBinRulesTest(unittest.TestCase):
         self.assertEqual(set(consistency_rules.packaging_by_item(company)["I1"]), {"each"})
 
 
+
+class OwnerAndSubstitutionRulesTest(unittest.TestCase):
+    ENTITIES = {
+        "storage_point": [
+            {"id": "FIX.1", "storage_type": "FIX", "section": "FIX.SEC_A"},
+            {"id": "OPEN.1", "storage_type": "OPEN"},
+        ],
+        "activity_area": [{"id": "PICK_ALPHA", "bins_from": ["FIX.SEC_A"]}],
+    }
+    ITEMS = [{"id": "I_ALPHA", "owner": "alpha"}, {"id": "I_BETA", "owner": "beta"}]
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def allocation(self, **files):
+        imports = []
+        for name, data in files.items():
+            folder = "structure" if name == "owner_zones" else "strategies"
+            write(self.tmp / folder / f"{name}.yaml", data)
+            imports.append(f"{folder}/{name}.yaml")
+        return write(self.tmp / "allocation.yaml", {"allocation": {"id": "h1", "imports": imports}})
+
+    OWNER_ZONES = {"owner_zones": [{"zone": {"type": "activity_area", "id": "PICK_ALPHA"}, "owners": ["alpha"]}]}
+
+    def test_r6_item_rule_into_foreign_zone(self):
+        rules = {"putaway_rules": [
+            {"id": "P_BETA", "applies_to": {"item_id": "I_BETA"},
+             "steps": [{"zone": {"type": "activity_area", "id": "PICK_ALPHA"}, "placement_strategy": "NEXT_EMPTY"}]},
+            {"id": "P_ALPHA", "applies_to": {"item_id": "I_ALPHA"},
+             "steps": [{"zone": {"type": "activity_area", "id": "PICK_ALPHA"}, "placement_strategy": "NEXT_EMPTY"}]},
+        ]}
+        allocation = self.allocation(owner_zones=self.OWNER_ZONES, putaway_rules=rules)
+        findings = consistency_rules.check_owner_rules(allocation, self.ENTITIES, self.ITEMS)
+        self.assertEqual(len(findings), 1, findings)
+        self.assertIn("R6", findings[0][1])
+        self.assertIn("I_BETA", findings[0][1])
+
+    def test_r10_fixed_place_in_foreign_zone(self):
+        fixed = {"fixed_bin_assignments": [
+            {"item_id": "I_BETA", "storage_point": "FIX.1", "min_qty": 1, "max_qty": 2},
+            {"item_id": "I_ALPHA", "storage_point": "FIX.1", "min_qty": 1, "max_qty": 2},
+            {"item_id": "I_BETA", "storage_point": "OPEN.1", "min_qty": 1, "max_qty": 2},
+        ]}
+        allocation = self.allocation(owner_zones=self.OWNER_ZONES, fixed_bin_assignments=fixed)
+        findings = consistency_rules.check_owner_rules(allocation, self.ENTITIES, self.ITEMS)
+        self.assertEqual(len(findings), 1, findings)
+        self.assertIn("R10", findings[0][1])
+        self.assertIn("fixed_bin_assignments[0]", findings[0][1])
+
+    def test_no_owner_zones_no_findings(self):
+        allocation = self.allocation(putaway_rules={"putaway_rules": []})
+        self.assertEqual(consistency_rules.check_owner_rules(allocation, self.ENTITIES, self.ITEMS), [])
+
+    def company(self, lifecycle):
+        company = write(self.tmp / "md/company.yaml", {"company": {"categories": ["categories/a/category.yaml"]}})
+        write(self.tmp / "md/categories/a/category.yaml", {"category": {"id": "a", "imports": ["strategies/lifecycle.yaml"]}})
+        write(self.tmp / "md/categories/a/strategies/lifecycle.yaml", {"lifecycle": lifecycle})
+        return company
+
+    def order_type(self, allow):
+        write(self.tmp / "ot/strategies/shortage_policy.yaml",
+              {"shortage_policy": {"default": "backorder", "allow_substitution": allow}})
+        return write(self.tmp / "ot/order_type.yaml",
+                     {"order_type": {"id": "ot", "imports": ["strategies/shortage_policy.yaml"]}})
+
+    def test_r12_no_substitutes_is_warning(self):
+        company = self.company([{"item_id": "I1", "status": "active"}])
+        findings = consistency_rules.check_substitution(self.order_type(True), company, [{"id": "I1"}])
+        self.assertEqual([level for level, _ in findings], ["warning"])
+
+    def test_r12_unknown_substitute_is_error(self):
+        company = self.company([{"item_id": "I1", "status": "seasonal", "substitute_item_id": "I9"}])
+        findings = consistency_rules.check_substitution(self.order_type(True), company, [{"id": "I1"}])
+        self.assertEqual([level for level, _ in findings], ["error"])
+
+    def test_r12_off_or_valid_passes(self):
+        company = self.company([{"item_id": "I1", "status": "seasonal", "substitute_item_id": "I2"}])
+        items = [{"id": "I1"}, {"id": "I2"}]
+        self.assertEqual(consistency_rules.check_substitution(self.order_type(True), company, items), [])
+        self.assertEqual(consistency_rules.check_substitution(self.order_type(False), company, items), [])
+
+
 if __name__ == "__main__":
     unittest.main()

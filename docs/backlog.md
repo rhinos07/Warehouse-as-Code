@@ -92,9 +92,13 @@ Real defects a runtime hits, not modelling preferences.
   or always overrides (warning). E.g. R11 is an error only if no step of
   an item's putaway rule has a place with the item's storage condition -
   a zone list mixing conditions is fine, the runtime filters.
-  *Implemented:* R1–R5, R8, R9, R11. R11 immediately found a real defect:
-  `PUTAWAY_ITEM_003_LOT_PURE` sent the chilled ITEM_003 to ambient HBR/BLK
-  only (fixed in Allocation-as-Code). Next: R6, R7, R10, R12.
+  *All implemented* (R7 as part of the id checks). R11 immediately found a
+  real defect: `PUTAWAY_ITEM_003_LOT_PURE` sent the chilled ITEM_003 to
+  ambient HBR/BLK only (fixed in Allocation-as-Code). R6, R10 and R12
+  find nothing in `example_customer` (no owners, no substitution allowed);
+  they are covered by tests only. A multi-owner site needs a 3PL example
+  in Topology, Allocation and OrderOrchestration (MasterData already has
+  `example_3pl`).
 
   | # | Rule | Repos | Severity | Origin |
   |---|---|---|---|---|
@@ -103,13 +107,13 @@ Real defects a runtime hits, not modelling preferences.
   | R3 | A `putaway_rule` sets `allow_mixed_lots` although every item it serves has `tracking.lot: none` (no effect). *Implemented.* | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
   | R4 | A `putaway_rule` step's `load_unit_types` contains an id that is not a `load_unit_type` (MasterData catalog), or that no place in the zone accepts (`allowed_load_unit_types`). *Implemented.* | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
   | R5 | A `putaway_rule` step sets `allow_mixed_items: true` on a zone whose places all have `homogeneity_required`. *Implemented* as a warning: the runtime keeps them homogeneous anyway. | Allocation ↔ Topology | warning | Allocation-as-Code PR #3 |
-  | R6 | A `putaway_rule` scoped by `item_id` places into a zone of `owner_zones` that is not reserved for the item's owner. | Allocation ↔ MasterData | error | stock-owner PRs |
-  | R7 | `applies_to.owner` is set although the company declares no owners, or names an owner that the company does not declare. | Allocation ↔ MasterData | error | stock-owner PRs |
+  | R6 | A `putaway_rule` scoped by `item_id` has a step into an `owner_zones` zone not reserved for the item's owner (that step can never be used). *Implemented.* Owner and category scopes are checked by Allocation-as-Code itself. | Allocation ↔ MasterData | error | stock-owner PRs |
+  | R7 | `applies_to.owner` names an owner the company does not declare (or the company declares none). *Covered by the id checks* (`cross_refs.py`). | Allocation ↔ MasterData | error | stock-owner PRs |
   | R8 | A `fixed_bin_assignment`'s place does not accept the load unit of the item's packaging level in the assignment's uom. *Implemented* (loose levels without a load unit are not checked). | Allocation ↔ Topology ↔ MasterData | error | fixed-bin PR |
   | R9 | A `fixed_bin_assignment` names a `uom` the item's packaging does not define (item existence: id checks). *Implemented.* | Allocation ↔ MasterData | error | fixed-bin PR |
-  | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
+  | R10 | A fixed place lies in an `owner_zones` zone (its storage type, or an activity area drawing from it) not reserved for the item's owner. *Implemented.* | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
   | R11 | No step of the `putaway_rule` an item gets (Allocation precedence) has a place with the item's `storage_condition` (MasterData). *Implemented.* | Allocation ↔ MasterData ↔ Topology | error | catalog-pinning PRs |
-  | R12 | An order_type sets `shortage_policy.allow_substitution: true`, but none of the items it can order has `lifecycle.substitute_item_id` - or a substitute id does not exist (MasterData). | OrderOrchestration ↔ MasterData | warning | shortage-policy PR |
+  | R12 | An order type sets `shortage_policy.allow_substitution: true` but no item of the company has a `lifecycle.substitute_item_id` (warning), or a substitute id is not an item of the company (error). *Implemented.* | OrderOrchestration ↔ MasterData | warning / error | shortage-policy PR |
 
   R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
