@@ -226,6 +226,21 @@ Not work yet — each needs a call before anything is built.
   3. Do count rules (blind count, recount tolerance) belong here, or
      only procedure and area?
   4. Is `delegate_to_controller` a procedure of its own?
+- **D8 — ABC (velocity) classification.** *Deferred, proposal only.*
+  Today Topology `section.criteria.access_frequency` (e.g. `SEC_FAST`) is
+  a free attribute nothing reads, and no item carries a class. Proposal:
+
+  | What | Where | Why |
+  |---|---|---|
+  | ABC class per item | `Allocation-as-Code`, per building (e.g. `strategies/item_classes.yaml`), written by a script | The class is per warehouse, not global: the same item can be A in one hall and C in another, so not in MasterData's item master |
+  | Class catalog (A/B/C, maybe X/Y/Z) | `Allocation-as-Code` `elements/` | Fixed vocabulary |
+  | Rules by class | `applies_to: { abc_class: "A" }` on `putaway_rule` / `search_rule`, ranked between owner and category | e.g. put A items into the fast area first |
+  | Storage area by class | Topology `section.abc_classes: ["A"]` instead of free `access_frequency` | The area states which classes it is meant for |
+
+  Open: ABC only, or XYZ (demand variability) too? Is the class per
+  warehouse or per client/item in KCC? Precedence position? Related:
+  `area_assignments` (Allocation) and D7 (cycle counting often uses the
+  ABC class for the count interval).
 
 ## E. Unmodeled domains
 
