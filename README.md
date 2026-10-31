@@ -149,7 +149,10 @@ then the cross-repo ids through the manifest (`tools/cross_refs.py`):
 order-type targets and workflow triggers against Topology, the targets and items of the order types' example orders (`examples`), Allocation
 zones and storage points against Topology, Allocation items, categories
 and owners against MasterData. Topology buildings are compiled with
-Topology's own `compile.py`. CI runs it on every change and daily
+Topology's own `compile.py`. On top, it runs cross-repo consistency rules
+(`tools/consistency_rules.py`, backlog C1a): errors for configuration the
+runtime can never satisfy, warnings for settings it always overrides.
+CI runs it on every change and daily
 against the siblings' current `main`.
 
 ```bash
