@@ -122,10 +122,20 @@ Real defects a runtime hits, not modelling preferences.
   | `MasterData-as-Code` | 7 / 12 | `category`, `company`, `hazmat-class`, `packaging-material`, `uom-type` |
   | `Allocation-as-Code` | 6 / 11 | `allocation`, `company`, `facility`, `placement-strategy`, `selection-strategy` |
 
-- **C3 — Test coverage is uneven.** `Topology-as-Code` has 7 test files.
-  `Allocation-as-Code` and `MasterData-as-Code` now have unit tests for
-  their newer rules (putaway, owners, tracking) and a CI test job, but not
-  for their older checks; `OrderOrchestration-as-Code` has none.
+- **C3 — Test coverage is uneven.** Counted on 2026-10-31:
+
+  | Repo | Test files | CI test job |
+  |---|---|---|
+  | `Topology-as-Code` | 11 | yes |
+  | `MasterData-as-Code` | 4 | yes |
+  | `Allocation-as-Code` | 3 | yes |
+  | `OrderOrchestration-as-Code` | 0 | no |
+
+  `Allocation-as-Code` and `MasterData-as-Code` test their newer rules
+  (putaway, owners, fixed bins, tracking, barcodes, load units) but not
+  their older checks. `OrderOrchestration-as-Code` has no unit tests at
+  all, and its CI does not run `tools/validate_examples.py`, so the
+  shortage-policy check on example orders runs only locally.
 - **C4 — ADR-0001's L3 layer is only half built.** Extension sidecars
   exist in `Topology-as-Code` only, and their `entity_type` is itself a
   fixed 17-value enum — so even the escape hatch cannot take a new entity
