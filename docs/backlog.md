@@ -147,13 +147,12 @@ Real defects a runtime hits, not modelling preferences.
   | `Topology-as-Code` | 11 | yes |
   | `MasterData-as-Code` | 4 | yes |
   | `Allocation-as-Code` | 3 | yes |
-  | `OrderOrchestration-as-Code` | 0 | no |
+  | `OrderOrchestration-as-Code` | 2 | yes |
 
   `Allocation-as-Code` and `MasterData-as-Code` test their newer rules
   (putaway, owners, fixed bins, tracking, barcodes, load units) but not
-  their older checks. `OrderOrchestration-as-Code` has no unit tests at
-  all, and its CI does not run `tools/validate_examples.py`, so the
-  shortage-policy check on example orders runs only locally.
+  their older checks. `OrderOrchestration-as-Code` has unit tests since
+  2026-10-31 and runs `tools/validate_examples.py` in CI as well.
 - **C4 — ADR-0001's L3 layer is only half built.** Extension sidecars
   exist in `Topology-as-Code` only, and their `entity_type` is itself a
   fixed 17-value enum — so even the escape hatch cannot take a new entity
