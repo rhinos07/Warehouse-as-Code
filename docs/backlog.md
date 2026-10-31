@@ -22,12 +22,11 @@ follow-ups.
 
 | # | Repo | Work | Closes |
 |---|---|---|---|
-| A1 | `WMS-POC` | Drop the hardcoded `ZONE_TECHNOLOGY` table in `poc/engine.py`; read the technology from the compiled artifact instead. | its Finding #8 |
-| A2 | `OrderOrchestration-as-Code` | Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog. | the vocabulary drift below |
+| A1 | `WMS-POC` | ~~Drop the hardcoded `ZONE_TECHNOLOGY` table in `poc/engine.py`; read the technology from the compiled artifact instead.~~ *Done:* `ZONE_TECHNOLOGY` is gone; the POC reads the compiled technology (its Finding #8, which surfaced #9). | its Finding #8 |
+| A2 | `OrderOrchestration-as-Code` | ~~Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog.~~ *Done in the data:* every `dimension_value` (`autostore`, `shuttle`, `manual_warehouse`) is a catalog id; `manual_pick` is gone. Not enforced by a check - that is a cross-repo reference (C1). | the vocabulary drift below |
 
-A2 has a concrete symptom already visible: `b2c_standard` uses
-`manual_warehouse` while `b2c_multi_system` uses `manual_pick` for
-comparable areas — exactly what an unanchored vocabulary produces.
+A2's former symptom (`b2c_multi_system` used `manual_pick` where
+`b2c_standard` used `manual_warehouse`) is gone; both use `manual_warehouse`.
 
 A1 is also the test for A2. Once the POC reads real technologies, `HBR`
 resolves to `shuttle`, and `b2c_standard` has no rule claiming that value —
@@ -38,13 +37,15 @@ theoretical one.
 
 Real defects a runtime hits, not modelling preferences.
 
-- **B1 — `completion_rule` re-fire / parent completion.** A top-level order
-  with only a `spawn_order` rule never leaves `created`, and a rule can fire
-  a second time once the spawned order reaches the watched status.
-  `WMS-POC` works around it with a `_fired_rules` set that its own code
-  labels "a POC workaround, not a fix". *Owner:*
-  `OrderOrchestration-as-Code` README, top of Next Steps; `WMS-POC`
-  Findings #2 and #6. **The last known correctness hole in the family.**
+- **B1 — `completion_rule` re-fire / parent completion.** *Closed in
+  `OrderOrchestration-as-Code`:* `action.supersedes_parent` moves the parent
+  to a reserved terminal `superseded` status, and
+  `completion-rule.schema.json` states normatively that a rule fires at
+  most once per parent. `WMS-POC` implements both (its `_fired_rules` set
+  is now the normative guard, no longer a workaround). Confirmed on
+  2026-10-31 by running `python -m poc.cli` against current `main` of all
+  four repos: `b2c_standard-001` ends `superseded`, the consolidation
+  order is spawned once.
 - **B2 — `applies_to` has no tie-break.** *Closed in `Allocation-as-Code`
   (stock-owner PR):* precedence is now item_id > owner + category > owner >
   category > default; since an item has exactly one id, owner and
@@ -249,11 +250,12 @@ From the Domain Map, plus one gap the Map does not currently name.
 
 ## Suggested order
 
-1. **A1, then A2** — small, they collect the payoff of work already merged,
-   and A1 empirically tests A2.
-2. **B1** — the last known correctness hole, and now verifiable against a
-   running engine rather than on paper.
-3. **C1** — the biggest remaining structural weakness, but start with the
-   design decision, not with code.
-4. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
+A1, A2, B1, B2 and B3 are done (2026-10-31). No known correctness hole
+remains open.
+
+1. **C1** — the biggest remaining structural weakness: decide where the
+   cross-repo rules R1–R12 run, then build. Start with the design
+   decision, not with code.
+2. **C1c** — small, but may turn existing examples red.
+3. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
    investments rather than reactive fixes.
