@@ -76,5 +76,23 @@ class CrossRefsTest(unittest.TestCase):
         self.assertEqual(ids, {"item": {"I1"}, "category": {"a"}, "owner": {"O1"}})
 
 
+    def test_examples_targets_and_items(self):
+        examples = self.tmp / "examples/walk"
+        write(examples / "01.yaml", {
+            "order": {"order_id": "O1", "order_type": "ot",
+                      "target": {"type": "door", "id": "DOOR_01"},
+                      "order_target": {"type": "door", "id": "GATE_9"}},
+            "positions": [{"line_id": "L1", "material_request": {"item_id": "I9", "quantity": 1, "uom": "each"}}],
+        })
+        write(examples / "02.yaml", {"order": {"order_id": "O2", "order_type": "other",
+                                               "target": {"type": "door", "id": "NOPE"}}})
+        md = {"item": {"I1"}, "category": set(), "owner": set()}
+        errors = cross_refs.check_examples(examples, "ot", ["h1"], self.compiled, md)
+        self.assertTrue(any("'GATE_9'" in e for e in errors), errors)
+        self.assertTrue(any("item 'I9'" in e for e in errors), errors)
+        self.assertFalse(any("NOPE" in e for e in errors), "other order types are skipped")
+        self.assertFalse(any("DOOR_01" in e for e in errors), errors)
+
+
 if __name__ == "__main__":
     unittest.main()

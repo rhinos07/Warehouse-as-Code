@@ -143,6 +143,10 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
         order_type = resolve("orchestration", entry["path"], f"order_types[{i}].path")
         if order_type is None:
             continue
+        for j, example_dir in enumerate(entry.get("examples", [])):
+            # Examples live outside customers/, so only existence is checked.
+            if not (repos["orchestration"] / example_dir).is_dir():
+                errors.append(f"{path}: order_types[{i}].examples[{j}] not found in OrderOrchestration-as-Code: {example_dir}")
         if order_type.resolve() in listed:
             errors.append(f"{path}: order_types[{i}] lists '{entry['path']}' twice")
         listed.add(order_type.resolve())
@@ -166,9 +170,15 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     known_process_types = cross_refs.process_types(repos["topology"])
     md = cross_refs.masterdata_ids(repos["masterdata"] / site["masterdata"]["company"])
     for entry in site["order_types"]:
+        order_type_file = repos["orchestration"] / entry["path"]
         errors += cross_refs.check_order_type(
-            repos["orchestration"] / entry["path"], entry["buildings"], compiled, known_process_types
+            order_type_file, entry["buildings"], compiled, known_process_types
         )
+        order_type_id = ((cross_refs.load_yaml(order_type_file) or {}).get("order_type") or {}).get("id")
+        for example_dir in entry.get("examples", []):
+            errors += cross_refs.check_examples(
+                repos["orchestration"] / example_dir, order_type_id, entry["buildings"], compiled, md
+            )
     for building, allocation in alloc.items():
         errors += cross_refs.check_allocation_building(allocation, compiled.get(building, {}), md)
     return errors

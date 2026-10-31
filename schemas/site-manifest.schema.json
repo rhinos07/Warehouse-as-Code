@@ -55,6 +55,12 @@
                 "minItems": 1,
                 "uniqueItems": true,
                 "description": "Building ids (Topology warehouse.yaml target.building) this order type serves. Its split targets must exist in one of them."
+              },
+              "examples": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true,
+                "description": "Optional directories of illustrative order instances for this order type (OrderOrchestration-as-Code examples/). Their header targets and position item ids are checked like the order type's own rules."
               }
             },
             "additionalProperties": false
