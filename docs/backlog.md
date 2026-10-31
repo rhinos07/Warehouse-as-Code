@@ -51,11 +51,10 @@ Real defects a runtime hits, not modelling preferences.
   category, identical scopes are the only possible tie, and
   `tools/validate.py` rejects them. `tools/precedence.py` is the reference
   selection. `WMS-POC` Finding #12 should be re-checked against it.
-- **B3 — `SEARCH_DEFAULT` cannot produce a technology split.** It searches
-  only `PICK_ZONE_A` and `HBR` although the same building has
-  `AUTOSTORE_A`, so a search-driven allocation always resolves to one
-  technology. *Owner:* `Allocation-as-Code` example data; `WMS-POC`
-  Finding #9.
+- **B3 — `SEARCH_DEFAULT` cannot produce a technology split.** *Closed in
+  `Allocation-as-Code` #2:* `SEARCH_DEFAULT` now searches `PICK_ZONE_A`,
+  then `AUTOSTORE_A`, then `HBR`, so a search-driven allocation can
+  resolve to the `autostore` technology. `WMS-POC` Finding #9.
 
 ## C. Structural, cross-cutting
 
@@ -160,9 +159,7 @@ From the Domain Map, plus one gap the Map does not currently name.
    and A1 empirically tests A2.
 2. **B1** — the last known correctness hole, and now verifiable against a
    running engine rather than on paper.
-3. **B3** (B2 is closed) — small, in `Allocation-as-Code`, already
-   confirmed at runtime.
-4. **C1** — the biggest remaining structural weakness, but start with the
+3. **C1** — the biggest remaining structural weakness, but start with the
    design decision, not with code.
-5. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
+4. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
    investments rather than reactive fixes.
