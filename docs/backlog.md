@@ -241,6 +241,16 @@ Not work yet — each needs a call before anything is built.
   warehouse or per client/item in KCC? Precedence position? Related:
   `area_assignments` (Allocation) and D7 (cycle counting often uses the
   ABC class for the count interval).
+- **D9 — Bills of material / kits.** *Deferred until a kitting or VAS
+  case exists.* Reference: myWMS `LOSBom` (parent item, child item,
+  quantity, `pickable`). Not modeled anywhere. If needed it belongs in
+  `MasterData-as-Code`: a kit item lists its components with quantity
+  and uom, and states whether the kit is picked as a whole (pre-built
+  and stocked) or assembled from its components at a work center.
+  Open: pre-built vs. built-to-order (or both); does the kit carry its
+  own stock, barcodes and tracking, or only its components; does
+  OrderOrchestration explode a kit line into component lines, and if so
+  as a split rule or a new position kind?
 
 ## E. Unmodeled domains
 
