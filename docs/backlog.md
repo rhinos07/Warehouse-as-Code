@@ -63,7 +63,9 @@ Real defects a runtime hits, not modelling preferences.
   `zone.id`, `load_unit_type`, `applies_to.category`/`item_id`, and since
   the stock-owner work `applies_to.owner` → `MasterData-as-Code`
   `company.yaml` owners) and no
-  repo's `tools/validate.py` checks any of them. `WMS-POC` does existence
+  repo's `tools/validate.py` checks any of them - except `load_unit_type`
+  data, which `Topology-as-Code` now checks through pinned copies (C1b).
+  `WMS-POC` does existence
   checks as a demo, not as a gate. **The largest remaining structural
   weakness** — today this is the only thing that could let a broken
   configuration reach a WMS. Needs a design decision before work starts:
@@ -87,10 +89,26 @@ Real defects a runtime hits, not modelling preferences.
   | R9 | A `fixed_bin_assignment` names an item or `uom` that MasterData does not define. | Allocation ↔ MasterData | error | fixed-bin PR |
   | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
 
+  | R11 | A `putaway_rule` places an item into a zone whose `storage_condition` differs from the item's `storage_condition` (MasterData). | Allocation ↔ MasterData ↔ Topology | error | catalog-pinning PRs |
+
   R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
   use the compiled MasterData artifact, not the raw `items.yaml`.
 
+- **C1b — First cross-repo mechanism in use: pinned catalog copies (way
+  A).** `Topology-as-Code` copies `load_unit_types.yaml` and
+  `storage_conditions.yaml` byte-identically from `MasterData-as-Code`;
+  `elements/catalog_sources.yaml` pins the source commit and hash,
+  `tools/sync_catalogs.py` checks and re-pins, and a CI job compares the
+  copies with the source at the pinned commit. A change in the source
+  repo never turns the consumer red; taking it over is a deliberate
+  re-pin. Candidate pattern for the rest of C1 where the consumer needs
+  the *data*, not only the ids.
+- **C1c — Topology follow-up: gross weight.** With `tare_weight` in the
+  pinned carrier catalog, `Topology-as-Code`'s storage-envelope check
+  could compare carrier `max_weight` + `tare_weight` against a storage
+  point's `max_weight`; today it uses `max_weight` alone. Not changed yet
+  because it may turn existing examples red.
 - **C2 — Schema strictness is uneven.** `Topology-as-Code` closes every
   schema with `additionalProperties: false`; the others largely do not.
   Whether that is deliberate (younger repos, still moving) or drift is
@@ -118,9 +136,12 @@ Real defects a runtime hits, not modelling preferences.
 Not work yet — each needs a call before anything is built.
 
 - **D1 — Shared-vocabulary extraction**, long deferred for `process_types`
-  and `load_unit_types`. `storage_technologies` was just settled a
-  different way: give it an owner rather than extract it. That precedent
-  may well settle the other two without a shared repo.
+  and `load_unit_types`. `storage_technologies` was settled by giving it
+  an owner rather than extracting it. *Decided for `load_unit_types`:*
+  owned by `MasterData-as-Code` (with `tare_weight`), together with the
+  new `storage_conditions` catalog; `Topology-as-Code` keeps pinned
+  copies (see C1, way A). `process_types` stays owned by
+  `Topology-as-Code`.
 - **D1a — UOM vocabulary drift.** `Topology-as-Code`'s
   `REPL_PICKFACE_A.unit_conversion` converts to `piece`, while
   `MasterData-as-Code`'s `uom_types` catalog names the same unit `each`.
