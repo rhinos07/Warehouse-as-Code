@@ -146,7 +146,7 @@ type serves. Schema: [`schemas/site-manifest.schema.json`](schemas/site-manifest
 (files exist, Topology and Allocation agree on the buildings, every order
 type is reachable from its company and names only existing buildings),
 then the cross-repo ids through the manifest (`tools/cross_refs.py`):
-order-type targets and workflow triggers against Topology, Allocation
+order-type targets and workflow triggers against Topology, the targets and items of the order types' example orders (`examples`), Allocation
 zones and storage points against Topology, Allocation items, categories
 and owners against MasterData. Topology buildings are compiled with
 Topology's own `compile.py`. CI runs it on every change and daily

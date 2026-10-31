@@ -18,7 +18,9 @@ site:
   order_types:
     - path: "customers/example_customer/channels/web/order_types/b2c_standard/order_type.yaml"
       buildings: ["hall_3"]
+      examples: ["examples/order_walkthrough"]
     - path: "customers/example_customer/channels/web/order_types/b2c_multi_system/order_type.yaml"
       buildings: ["hall_3"]
+      examples: ["examples/multi_system_reallocation_walkthrough"]
     - path: "customers/example_customer/channels/inbound/order_types/inbound_advice/order_type.yaml"
       buildings: ["hall_3"]

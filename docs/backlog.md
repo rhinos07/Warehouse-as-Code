@@ -79,11 +79,9 @@ Real defects a runtime hits, not modelling preferences.
   against the same-named Topology building, Allocation item ids,
   categories and owners against MasterData. Topology buildings are
   compiled with Topology's own `compile.py`. Runs in CI on every change
-  and daily. Next: the consistency rules R1–R12 (C1a). Still outside the
-  check: `OrderOrchestration-as-Code/examples/` (illustrative order
-  instances, not referenced by a site) use items unknown to MasterData
-  (`ITEM_SMALL_GADGET`, `ITEM_BULKY_LAMP`, `ITEM_WIDGET`) and door
-  `GATE_3`. The facility id differs between Topology (`PA11`) and
+  and daily. The example orders in `OrderOrchestration-as-Code/examples/`
+  are checked too (manifest `examples`). Next: the consistency rules
+  R1–R12 (C1a). The facility id differs between Topology (`PA11`) and
   Allocation (`facility_pa11`); harmless for the manifest, but worth
   aligning.
 - **C1a — Cross-repo consistency rules waiting on C1.** Beyond plain id

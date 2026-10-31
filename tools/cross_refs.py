@@ -128,3 +128,28 @@ def check_allocation_building(allocation: Path, ids: dict[str, set[str]], md: di
                 if isinstance(value, str) and value not in md[kind]:
                     errors.append(f"{imported.name} {where(path)}: {kind} '{value}' not in MasterData")
     return [f"{allocation}: {error}" for error in errors]
+
+
+def check_examples(directory: Path, order_type_id: str, buildings: list[str],
+                   compiled: dict[str, dict[str, set[str]]], md: dict[str, set[str]]) -> list[str]:
+    """Illustrative order instances: every example in the directory that
+    belongs to this order type has header targets in the served buildings
+    and position item ids in MasterData."""
+    errors = []
+    targets: dict[str, set[str]] = {kind: set() for kind in TARGET_TYPES}
+    for building in buildings:
+        for kind in TARGET_TYPES:
+            targets[kind] |= compiled.get(building, {}).get(kind, set())
+    for example in sorted(directory.glob("*.yaml")):
+        data = load_yaml(example) or {}
+        order = data.get("order") or {}
+        if order.get("order_type") != order_type_id:
+            continue
+        for path, node in walk(data):
+            if set(node) == {"type", "id"} and node["type"] in TARGET_TYPES:
+                if node["id"] not in targets[node["type"]]:
+                    errors.append(f"{example.name} {where(path)}: {node['type']} '{node['id']}' not found in building(s) {', '.join(buildings)}")
+            item = node.get("item_id")
+            if isinstance(item, str) and item not in md["item"]:
+                errors.append(f"{example.name} {where(path)}: item '{item}' not in MasterData")
+    return [f"{directory}: {error}" for error in errors]
