@@ -105,5 +105,97 @@ class RealPrecedenceTest(unittest.TestCase):
         self.assertEqual(select(rules, {"id": "I", "category": "c"})["id"], "C")
 
 
+
+def write(path: Path, data: dict) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    return path
+
+
+TRACKED = {"lot": "required", "expiry": {"tracked": True, "min_remaining_at_receipt_days": 60, "total_shelf_life_days": 270}}
+UNTRACKED = {"lot": "none", "expiry": {"tracked": False}}
+
+
+class TrackingAndFixedBinRulesTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def allocation(self, **files):
+        imports = []
+        for name, data in files.items():
+            write(self.tmp / "strategies" / f"{name}.yaml", data)
+            imports.append(f"strategies/{name}.yaml")
+        return write(self.tmp / "allocation.yaml", {"allocation": {"id": "h1", "imports": imports}})
+
+    def search(self, rules, items):
+        allocation = self.allocation(search_rules={"search_rules": rules})
+        return consistency_rules.check_search_rules(allocation, items, select_rule)
+
+    def test_r1_fefo_on_untracked_item_is_error_when_scoped(self):
+        rules = [{"id": "S1", "applies_to": {"item_id": "I1"}, "steps": [{"zone": {}, "selection_strategy": "FEFO"}]}]
+        findings = self.search(rules, [{"id": "I1", "tracking": UNTRACKED}])
+        self.assertEqual([level for level, _ in findings], ["error"])
+        self.assertIn("R1", findings[0][1])
+
+    def test_r1_default_rule_is_only_a_warning(self):
+        rules = [{"id": "DEF", "steps": [{"zone": {}, "selection_strategy": "FEFO"}]}]
+        findings = self.search(rules, [{"id": "I1", "tracking": UNTRACKED}, {"id": "I2", "tracking": TRACKED}])
+        self.assertEqual([level for level, _ in findings], ["warning"])
+
+    def test_r2_floor_above_total_shelf_life_is_error(self):
+        rules = [{"id": "S1", "applies_to": {"item_id": "I1"},
+                  "steps": [{"zone": {}, "selection_strategy": "FEFO", "constraints": {"min_remaining_shelf_life_days": 300}}]}]
+        findings = self.search(rules, [{"id": "I1", "tracking": TRACKED}])
+        self.assertTrue(any(level == "error" and "R2" in msg for level, msg in findings), findings)
+
+    def test_r2_floor_above_receipt_minimum_is_warning(self):
+        rules = [{"id": "S1", "applies_to": {"item_id": "I1"},
+                  "steps": [{"zone": {}, "selection_strategy": "FEFO", "constraints": {"min_remaining_shelf_life_days": 90}}]}]
+        findings = self.search(rules, [{"id": "I1", "tracking": TRACKED}])
+        self.assertEqual([level for level, _ in findings], ["warning"])
+
+    def test_r2_floor_below_receipt_minimum_passes(self):
+        rules = [{"id": "S1", "applies_to": {"item_id": "I1"},
+                  "steps": [{"zone": {}, "selection_strategy": "FEFO", "constraints": {"min_remaining_shelf_life_days": 30}}]}]
+        self.assertEqual(self.search(rules, [{"id": "I1", "tracking": TRACKED}]), [])
+
+    def test_r3_mixed_lots_without_lot_tracking_is_warning(self):
+        rules = [{"id": "P1", "applies_to": {"item_id": "I1"},
+                  "steps": [{"zone": {}, "placement_strategy": "NEXT_EMPTY", "constraints": {"allow_mixed_lots": False}}]}]
+        allocation = self.allocation(putaway_rules={"putaway_rules": rules})
+        findings = consistency_rules.check_mixed_lots(allocation, [{"id": "I1", "tracking": UNTRACKED}], select_rule)
+        self.assertEqual([level for level, _ in findings], ["warning"])
+        findings = consistency_rules.check_mixed_lots(allocation, [{"id": "I1", "tracking": TRACKED}], select_rule)
+        self.assertEqual(findings, [])
+
+    def fixed(self, entry):
+        allocation = self.allocation(fixed_bin_assignments={"fixed_bin_assignments": [entry]})
+        entities = {"storage_point": [{"id": "FIX.1", "allowed_load_unit_types": ["carton"]}]}
+        items = [{"id": "I1", "default_uom": "each"}]
+        packaging = {"I1": {"each": {"uom": "each"}, "case": {"uom": "case", "load_unit_type": "carton"},
+                            "pallet": {"uom": "pallet", "load_unit_type": "pallet_euro"}}}
+        return consistency_rules.check_fixed_bins(allocation, entities, items, packaging)
+
+    def test_r8_place_rejects_load_unit(self):
+        findings = self.fixed({"item_id": "I1", "storage_point": "FIX.1", "uom": "pallet", "min_qty": 1, "max_qty": 2})
+        self.assertTrue(any("R8" in msg and "pallet_euro" in msg for _, msg in findings), findings)
+
+    def test_r8_matching_or_loose_level_passes(self):
+        self.assertEqual(self.fixed({"item_id": "I1", "storage_point": "FIX.1", "uom": "case", "min_qty": 1, "max_qty": 2}), [])
+        self.assertEqual(self.fixed({"item_id": "I1", "storage_point": "FIX.1", "min_qty": 1, "max_qty": 2}), [])
+
+    def test_r9_unknown_uom(self):
+        findings = self.fixed({"item_id": "I1", "storage_point": "FIX.1", "uom": "box", "min_qty": 1, "max_qty": 2})
+        self.assertTrue(any("R9" in msg and "'box'" in msg for _, msg in findings), findings)
+
+    def test_packaging_by_item_reads_categories(self):
+        company = write(self.tmp / "md/company.yaml", {"company": {"categories": ["categories/a/category.yaml"]}})
+        write(self.tmp / "md/categories/a/category.yaml", {"category": {"id": "a", "imports": ["structure/packaging.yaml"]}})
+        write(self.tmp / "md/categories/a/structure/packaging.yaml", {"packaging": [
+            {"item_id": "I1", "uom_hierarchy": [{"uom": "each", "quantity_of_previous": 1}]}]})
+        self.assertEqual(set(consistency_rules.packaging_by_item(company)["I1"]), {"each"})
+
+
 if __name__ == "__main__":
     unittest.main()

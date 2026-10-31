@@ -92,22 +92,21 @@ Real defects a runtime hits, not modelling preferences.
   or always overrides (warning). E.g. R11 is an error only if no step of
   an item's putaway rule has a place with the item's storage condition -
   a zone list mixing conditions is fine, the runtime filters.
-  *Implemented:* R4, R5, R11. R11 immediately found a real defect:
+  *Implemented:* R1–R5, R8, R9, R11. R11 immediately found a real defect:
   `PUTAWAY_ITEM_003_LOT_PURE` sent the chilled ITEM_003 to ambient HBR/BLK
-  only (fixed in Allocation-as-Code). Next: R1–R3, R8, R9; then R6, R7,
-  R10, R12.
+  only (fixed in Allocation-as-Code). Next: R6, R7, R10, R12.
 
   | # | Rule | Repos | Severity | Origin |
   |---|---|---|---|---|
-  | R1 | A `search_rule` with `FEFO` or `min_remaining_shelf_life_days` scopes an item whose `tracking.expiry.tracked` is false. | Allocation ↔ MasterData | error | MasterData-as-Code PR #3 |
-  | R2 | A `search_rule`'s `min_remaining_shelf_life_days` is above the item's `tracking.expiry.min_remaining_at_receipt_days`: stock can be received that this rule can never ship. | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
-  | R3 | A `putaway_rule` step sets `allow_mixed_lots` for an item with `tracking.lot: none` (has no effect). | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
+  | R1 | A `search_rule` with `FEFO` or `min_remaining_shelf_life_days` is the rule an item without tracked expiry gets. *Implemented:* error for a rule scoped to the item/category/owner, warning for the default rule (it also serves tracked items). | Allocation ↔ MasterData | error / warning | MasterData-as-Code PR #3 |
+  | R2 | A `search_rule`'s `min_remaining_shelf_life_days` is above the item's total shelf life (error: no stock can qualify) or above `tracking.expiry.min_remaining_at_receipt_days` (warning: stock accepted at receipt may never ship). *Implemented.* | Allocation ↔ MasterData | error / warning | MasterData-as-Code PR #3 |
+  | R3 | A `putaway_rule` sets `allow_mixed_lots` although every item it serves has `tracking.lot: none` (no effect). *Implemented.* | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
   | R4 | A `putaway_rule` step's `load_unit_types` contains an id that is not a `load_unit_type` (MasterData catalog), or that no place in the zone accepts (`allowed_load_unit_types`). *Implemented.* | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
   | R5 | A `putaway_rule` step sets `allow_mixed_items: true` on a zone whose places all have `homogeneity_required`. *Implemented* as a warning: the runtime keeps them homogeneous anyway. | Allocation ↔ Topology | warning | Allocation-as-Code PR #3 |
   | R6 | A `putaway_rule` scoped by `item_id` places into a zone of `owner_zones` that is not reserved for the item's owner. | Allocation ↔ MasterData | error | stock-owner PRs |
   | R7 | `applies_to.owner` is set although the company declares no owners, or names an owner that the company does not declare. | Allocation ↔ MasterData | error | stock-owner PRs |
-  | R8 | A `fixed_bin_assignment.storage_point` is not a compiled Topology `storage_point`, or its storage type does not allow the load unit the item is stored in. | Allocation ↔ Topology | error | fixed-bin PR |
-  | R9 | A `fixed_bin_assignment` names an item or `uom` that MasterData does not define. | Allocation ↔ MasterData | error | fixed-bin PR |
+  | R8 | A `fixed_bin_assignment`'s place does not accept the load unit of the item's packaging level in the assignment's uom. *Implemented* (loose levels without a load unit are not checked). | Allocation ↔ Topology ↔ MasterData | error | fixed-bin PR |
+  | R9 | A `fixed_bin_assignment` names a `uom` the item's packaging does not define (item existence: id checks). *Implemented.* | Allocation ↔ MasterData | error | fixed-bin PR |
   | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
   | R11 | No step of the `putaway_rule` an item gets (Allocation precedence) has a place with the item's `storage_condition` (MasterData). *Implemented.* | Allocation ↔ MasterData ↔ Topology | error | catalog-pinning PRs |
   | R12 | An order_type sets `shortage_policy.allow_substitution: true`, but none of the items it can order has `lifecycle.substitute_item_id` - or a substitute id does not exist (MasterData). | OrderOrchestration ↔ MasterData | warning | shortage-policy PR |
