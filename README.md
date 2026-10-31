@@ -144,9 +144,13 @@ type serves. Schema: [`schemas/site-manifest.schema.json`](schemas/site-manifest
 
 `tools/check_sites.py` checks the composition against the sibling repos
 (files exist, Topology and Allocation agree on the buildings, every order
-type is reachable from its company and names only existing buildings).
-CI runs it on every change and daily against the siblings' current
-`main`. It is the base for the cross-repo checks in backlog C1.
+type is reachable from its company and names only existing buildings),
+then the cross-repo ids through the manifest (`tools/cross_refs.py`):
+order-type targets and workflow triggers against Topology, Allocation
+zones and storage points against Topology, Allocation items, categories
+and owners against MasterData. Topology buildings are compiled with
+Topology's own `compile.py`. CI runs it on every change and daily
+against the siblings' current `main`.
 
 ```bash
 pip install -r requirements.txt

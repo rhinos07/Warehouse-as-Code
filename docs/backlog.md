@@ -71,16 +71,21 @@ Real defects a runtime hits, not modelling preferences.
   weakness** — today this is the only thing that could let a broken
   configuration reach a WMS. Needs a design decision before work starts:
   shared tool, per-repo duplication, or CI-only.
-- **C1 — first step done:** site manifests (`sites/`) bind the repos per
-  facility, checked by `tools/check_sites.py` in CI. Next: resolve ids
-  across repos through the manifest (order-type targets against the
-  listed buildings, item ids, zone ids), then R1–R12. Known finding: the
-  example OrderOrchestration order types use targets from Topology's
-  `autostore_customer` (`EXIT`, `PUTAWAY_ZONE_GRID`) and items unknown to
-  MasterData, so they will fail once targets are checked. Also: the
-  facility id differs between Topology (`PA11`) and Allocation
-  (`facility_pa11`); the manifest maps by path, so it does not matter
-  yet, but the ids should be aligned.
+- **C1 — id checks done:** site manifests (`sites/`) bind the repos per
+  facility; `tools/check_sites.py` checks the composition and, through
+  `tools/cross_refs.py`, the plain cross-repo ids: order-type targets
+  against the buildings each order type serves, workflow triggers
+  against Topology `process_types`, Allocation zones and storage points
+  against the same-named Topology building, Allocation item ids,
+  categories and owners against MasterData. Topology buildings are
+  compiled with Topology's own `compile.py`. Runs in CI on every change
+  and daily. Next: the consistency rules R1–R12 (C1a). Still outside the
+  check: `OrderOrchestration-as-Code/examples/` (illustrative order
+  instances, not referenced by a site) use items unknown to MasterData
+  (`ITEM_SMALL_GADGET`, `ITEM_BULKY_LAMP`, `ITEM_WIDGET`) and door
+  `GATE_3`. The facility id differs between Topology (`PA11`) and
+  Allocation (`facility_pa11`); harmless for the manifest, but worth
+  aligning.
 - **C1a — Cross-repo consistency rules waiting on C1.** Beyond plain id
   existence, the putaway and tracking work adds rules that compare
   *values* across repos. Each is defined, none is implemented, and all

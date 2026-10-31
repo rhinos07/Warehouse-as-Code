@@ -56,7 +56,7 @@ class CheckSitesTest(unittest.TestCase):
     def run_check(self, manifest=None, name="acme/f1.yaml"):
         path = self.sites / name
         write(path, manifest or self.manifest)
-        return check_sites.check_site(path, self.repos, set())
+        return check_sites.check_site(path, self.repos, set(), check_ids=False)
 
     def test_consistent_site_passes(self):
         self.assertEqual(self.run_check(), [])
