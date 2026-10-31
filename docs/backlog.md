@@ -22,12 +22,11 @@ follow-ups.
 
 | # | Repo | Work | Closes |
 |---|---|---|---|
-| A1 | `WMS-POC` | Drop the hardcoded `ZONE_TECHNOLOGY` table in `poc/engine.py`; read the technology from the compiled artifact instead. | its Finding #8 |
-| A2 | `OrderOrchestration-as-Code` | Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog. | the vocabulary drift below |
+| A1 | `WMS-POC` | ~~Drop the hardcoded `ZONE_TECHNOLOGY` table in `poc/engine.py`; read the technology from the compiled artifact instead.~~ *Done:* `ZONE_TECHNOLOGY` is gone; the POC reads the compiled technology (its Finding #8, which surfaced #9). | its Finding #8 |
+| A2 | `OrderOrchestration-as-Code` | ~~Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog.~~ *Done in the data:* every `dimension_value` (`autostore`, `shuttle`, `manual_warehouse`) is a catalog id; `manual_pick` is gone. Not enforced by a check - that is a cross-repo reference (C1). | the vocabulary drift below |
 
-A2 has a concrete symptom already visible: `b2c_standard` uses
-`manual_warehouse` while `b2c_multi_system` uses `manual_pick` for
-comparable areas — exactly what an unanchored vocabulary produces.
+A2's former symptom (`b2c_multi_system` used `manual_pick` where
+`b2c_standard` used `manual_warehouse`) is gone; both use `manual_warehouse`.
 
 A1 is also the test for A2. Once the POC reads real technologies, `HBR`
 resolves to `shuttle`, and `b2c_standard` has no rule claiming that value —
@@ -38,13 +37,15 @@ theoretical one.
 
 Real defects a runtime hits, not modelling preferences.
 
-- **B1 — `completion_rule` re-fire / parent completion.** A top-level order
-  with only a `spawn_order` rule never leaves `created`, and a rule can fire
-  a second time once the spawned order reaches the watched status.
-  `WMS-POC` works around it with a `_fired_rules` set that its own code
-  labels "a POC workaround, not a fix". *Owner:*
-  `OrderOrchestration-as-Code` README, top of Next Steps; `WMS-POC`
-  Findings #2 and #6. **The last known correctness hole in the family.**
+- **B1 — `completion_rule` re-fire / parent completion.** *Closed in
+  `OrderOrchestration-as-Code`:* `action.supersedes_parent` moves the parent
+  to a reserved terminal `superseded` status, and
+  `completion-rule.schema.json` states normatively that a rule fires at
+  most once per parent. `WMS-POC` implements both (its `_fired_rules` set
+  is now the normative guard, no longer a workaround). Confirmed on
+  2026-10-31 by running `python -m poc.cli` against current `main` of all
+  four repos: `b2c_standard-001` ends `superseded`, the consolidation
+  order is spawned once.
 - **B2 — `applies_to` has no tie-break.** *Closed in `Allocation-as-Code`
   (stock-owner PR):* precedence is now item_id > owner + category > owner >
   category > default; since an item has exactly one id, owner and
@@ -104,27 +105,40 @@ Real defects a runtime hits, not modelling preferences.
   repo never turns the consumer red; taking it over is a deliberate
   re-pin. Candidate pattern for the rest of C1 where the consumer needs
   the *data*, not only the ids.
-- **C1c — Topology follow-up: gross weight.** With `tare_weight` in the
-  pinned carrier catalog, `Topology-as-Code`'s storage-envelope check
-  could compare carrier `max_weight` + `tare_weight` against a storage
-  point's `max_weight`; today it uses `max_weight` alone. Not changed yet
-  because it may turn existing examples red.
-- **C2 — Schema strictness is uneven.** `Topology-as-Code` closes every
-  schema with `additionalProperties: false`; the others largely do not.
-  Whether that is deliberate (younger repos, still moving) or drift is
-  worth deciding rather than leaving implicit.
+- **C1c — Topology follow-up: gross weight.** *Closed, not pursued:*
+  adding `tare_weight` to the static storage-envelope check would only
+  improve a design-time plausibility check. At runtime the weight of a
+  load unit is measured by a scale; a calculated weight is too risky to
+  rely on. Topology's bay and shelf load limits (`load_limits`) follow the
+  same rule: Topology states the limits, the runtime compares the measured
+  weight.
+- **C2 — Schema strictness is uneven.** `Topology-as-Code` closes almost
+  every schema with `additionalProperties: false`; the others close about
+  half. Whether that is deliberate (younger repos, still moving) or drift is
+  worth deciding rather than leaving implicit. Counted on 2026-10-31 as
+  schemas with a top-level `additionalProperties: false`:
 
-  | Repo | Closed schemas |
-  |---|---|
-  | `Topology-as-Code` | 22 / 22 |
-  | `OrderOrchestration-as-Code` | 7 / 12 |
-  | `MasterData-as-Code` | 4 / 9 |
-  | `Allocation-as-Code` | 2 / 6 |
+  | Repo | Closed schemas | Open |
+  |---|---|---|
+  | `Topology-as-Code` | 23 / 25 | `quantity` (definitions only, no top-level object), `uom-type` (pinned copy, must accept every source field) - both by design |
+  | `OrderOrchestration-as-Code` | 7 / 13 | `channel`, `company`, `order-header` (open on purpose, `fields.yaml` extends it), `order-type`, `split-dimension`, `split-reason` |
+  | `MasterData-as-Code` | 7 / 12 | `category`, `company`, `hazmat-class`, `packaging-material`, `uom-type` |
+  | `Allocation-as-Code` | 6 / 11 | `allocation`, `company`, `facility`, `placement-strategy`, `selection-strategy` |
 
-- **C3 — Test coverage is uneven.** `Topology-as-Code` has 7 test files.
-  `Allocation-as-Code` and `MasterData-as-Code` now have unit tests for
-  their newer rules (putaway, owners, tracking) and a CI test job, but not
-  for their older checks; `OrderOrchestration-as-Code` has none.
+- **C3 — Test coverage is uneven.** Counted on 2026-10-31:
+
+  | Repo | Test files | CI test job |
+  |---|---|---|
+  | `Topology-as-Code` | 11 | yes |
+  | `MasterData-as-Code` | 4 | yes |
+  | `Allocation-as-Code` | 3 | yes |
+  | `OrderOrchestration-as-Code` | 0 | no |
+
+  `Allocation-as-Code` and `MasterData-as-Code` test their newer rules
+  (putaway, owners, fixed bins, tracking, barcodes, load units) but not
+  their older checks. `OrderOrchestration-as-Code` has no unit tests at
+  all, and its CI does not run `tools/validate_examples.py`, so the
+  shortage-policy check on example orders runs only locally.
 - **C4 — ADR-0001's L3 layer is only half built.** Extension sidecars
   exist in `Topology-as-Code` only, and their `entity_type` is itself a
   fixed 17-value enum — so even the escape hatch cannot take a new entity
@@ -229,16 +243,20 @@ From the Domain Map, plus one gap the Map does not currently name.
   *slotting optimization* as analytics, which is a different thing: a
   putaway destination has to be decided on every inbound. **Worth adding to
   the Domain Map as its own row rather than leaving it in the gap between
-  two entries.** *In progress:* `Allocation-as-Code` PR #3 adds
-  `putaway_rule` as the inbound counterpart of `search_rule`.
+  two entries.** *Closed as configuration:* `Allocation-as-Code` models
+  it with `putaway_rule` (#3, the inbound counterpart of `search_rule`,
+  with a placement-strategy catalog), owner zones (#4) and fixed-bin
+  assignments (#5); the Domain Map has its own row now. Still open on the
+  runtime side: `WMS-POC` Finding #10 - the POC does not read
+  `putaway_rule` yet and keeps its hardcoded inbound split.
 
 ## Suggested order
 
-1. **A1, then A2** — small, they collect the payoff of work already merged,
-   and A1 empirically tests A2.
-2. **B1** — the last known correctness hole, and now verifiable against a
-   running engine rather than on paper.
-3. **C1** — the biggest remaining structural weakness, but start with the
-   design decision, not with code.
-4. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
+A1, A2, B1, B2, B3 and C1c are done or closed (2026-10-31). No known correctness hole
+remains open.
+
+1. **C1** — the biggest remaining structural weakness: decide where the
+   cross-repo rules R1–R12 run, then build. Start with the design
+   decision, not with code.
+2. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
    investments rather than reactive fixes.
