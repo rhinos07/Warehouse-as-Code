@@ -83,6 +83,9 @@ Real defects a runtime hits, not modelling preferences.
   | R5 | A `putaway_rule` step sets `allow_mixed_items: true` on a zone whose `homogeneity_required` is true. | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
   | R6 | A `putaway_rule` scoped by `item_id` places into a zone of `owner_zones` that is not reserved for the item's owner. | Allocation ↔ MasterData | error | stock-owner PRs |
   | R7 | `applies_to.owner` is set although the company declares no owners, or names an owner that the company does not declare. | Allocation ↔ MasterData | error | stock-owner PRs |
+  | R8 | A `fixed_bin_assignment.storage_point` is not a compiled Topology `storage_point`, or its storage type does not allow the load unit the item is stored in. | Allocation ↔ Topology | error | fixed-bin PR |
+  | R9 | A `fixed_bin_assignment` names an item or `uom` that MasterData does not define. | Allocation ↔ MasterData | error | fixed-bin PR |
+  | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
 
   R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
@@ -118,6 +121,11 @@ Not work yet — each needs a call before anything is built.
   and `load_unit_types`. `storage_technologies` was just settled a
   different way: give it an owner rather than extract it. That precedent
   may well settle the other two without a shared repo.
+- **D1a — UOM vocabulary drift.** `Topology-as-Code`'s
+  `REPL_PICKFACE_A.unit_conversion` converts to `piece`, while
+  `MasterData-as-Code`'s `uom_types` catalog names the same unit `each`.
+  Same shape as D1: decide which repo owns UOM ids (MasterData is the
+  natural owner) and point Topology at it.
 - **D2 — `Allocation-as-Code`'s `zone.type` excludes `work_center`**,
   although Topology's `work_center` can carry `storage_point_ref: true`
   (bookable WIP) and Orchestration's `target.type` already includes it. So
