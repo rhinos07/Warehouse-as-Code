@@ -45,11 +45,12 @@ Real defects a runtime hits, not modelling preferences.
   labels "a POC workaround, not a fix". *Owner:*
   `OrderOrchestration-as-Code` README, top of Next Steps; `WMS-POC`
   Findings #2 and #6. **The last known correctness hole in the family.**
-- **B2 — `applies_to` has no tie-break.** `item_id` beats `category` beats
-  the building default, but two rules of *equal* specificity are undefined;
-  `tools/validate.py` only rejects two rules both omitting `applies_to`.
-  Same shape as the sibling-distinctness gap `split_rule.when` closed.
-  *Owner:* `Allocation-as-Code`; confirmed at runtime as `WMS-POC` Finding #12.
+- **B2 — `applies_to` has no tie-break.** *Closed in `Allocation-as-Code`
+  (stock-owner PR):* precedence is now item_id > owner + category > owner >
+  category > default; since an item has exactly one id, owner and
+  category, identical scopes are the only possible tie, and
+  `tools/validate.py` rejects them. `tools/precedence.py` is the reference
+  selection. `WMS-POC` Finding #12 should be re-checked against it.
 - **B3 — `SEARCH_DEFAULT` cannot produce a technology split.** It searches
   only `PICK_ZONE_A` and `HBR` although the same building has
   `AUTOSTORE_A`, so a search-driven allocation always resolves to one
@@ -58,9 +59,11 @@ Real defects a runtime hits, not modelling preferences.
 
 ## C. Structural, cross-cutting
 
-- **C1 — Cross-repo referential integrity is enforced nowhere.** Five
+- **C1 — Cross-repo referential integrity is enforced nowhere.** Six
   reference classes cross repo boundaries (`target.id`, `item_id`,
-  `zone.id`, `load_unit_type`, `applies_to.category`/`item_id`) and no
+  `zone.id`, `load_unit_type`, `applies_to.category`/`item_id`, and since
+  the stock-owner work `applies_to.owner` → `MasterData-as-Code`
+  `company.yaml` owners) and no
   repo's `tools/validate.py` checks any of them. `WMS-POC` does existence
   checks as a demo, not as a gate. **The largest remaining structural
   weakness** — today this is the only thing that could let a broken
@@ -79,8 +82,10 @@ Real defects a runtime hits, not modelling preferences.
   | R3 | A `putaway_rule` step sets `allow_mixed_lots` for an item with `tracking.lot: none` (has no effect). | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
   | R4 | A `putaway_rule` step's `load_unit_types` contains an id that is not a Topology `load_unit_type`, or not in the zone's `allowed_load_unit_types`. | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
   | R5 | A `putaway_rule` step sets `allow_mixed_items: true` on a zone whose `homogeneity_required` is true. | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
+  | R6 | A `putaway_rule` scoped by `item_id` places into a zone of `owner_zones` that is not reserved for the item's owner. | Allocation ↔ MasterData | error | stock-owner PRs |
+  | R7 | `applies_to.owner` is set although the company declares no owners, or names an owner that the company does not declare. | Allocation ↔ MasterData | error | stock-owner PRs |
 
-  R1–R3 resolve item tracking through `MasterData-as-Code`'s
+  R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
   use the compiled MasterData artifact, not the raw `items.yaml`.
 
@@ -96,10 +101,10 @@ Real defects a runtime hits, not modelling preferences.
   | `MasterData-as-Code` | 4 / 9 |
   | `Allocation-as-Code` | 2 / 6 |
 
-- **C3 — Test coverage is uneven.** `Topology-as-Code` has 7 test files;
-  the other three sibling repos have none. `Allocation-as-Code` is the
-  least-covered of all: no tests, and until recently nothing had ever
-  executed its model.
+- **C3 — Test coverage is uneven.** `Topology-as-Code` has 7 test files.
+  `Allocation-as-Code` and `MasterData-as-Code` now have unit tests for
+  their newer rules (putaway, owners, tracking) and a CI test job, but not
+  for their older checks; `OrderOrchestration-as-Code` has none.
 - **C4 — ADR-0001's L3 layer is only half built.** Extension sidecars
   exist in `Topology-as-Code` only, and their `entity_type` is itself a
   fixed 17-value enum — so even the escape hatch cannot take a new entity
@@ -125,7 +130,10 @@ Not work yet — each needs a call before anything is built.
 - **D4 — Does `search_rule` need an `order_type`/`channel` scope**, in
   addition to item/category?
 - **D5 — Where does trading-partner master data live** (customers,
-  suppliers) — `MasterData-as-Code` or its own repo?
+  suppliers) — `MasterData-as-Code` or its own repo? *Partly decided:*
+  stock owners live in `MasterData-as-Code` as `company.yaml` `owners`,
+  each item belongs to exactly one owner. Suppliers and customers remain
+  open.
 
 ## E. Unmodeled domains
 
@@ -152,7 +160,7 @@ From the Domain Map, plus one gap the Map does not currently name.
    and A1 empirically tests A2.
 2. **B1** — the last known correctness hole, and now verifiable against a
    running engine rather than on paper.
-3. **B2 and B3** — small, both in `Allocation-as-Code`, both already
+3. **B3** (B2 is closed) — small, in `Allocation-as-Code`, already
    confirmed at runtime.
 4. **C1** — the biggest remaining structural weakness, but start with the
    design decision, not with code.
