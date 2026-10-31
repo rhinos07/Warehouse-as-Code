@@ -66,6 +66,24 @@ Real defects a runtime hits, not modelling preferences.
   weakness** — today this is the only thing that could let a broken
   configuration reach a WMS. Needs a design decision before work starts:
   shared tool, per-repo duplication, or CI-only.
+- **C1a — Cross-repo consistency rules waiting on C1.** Beyond plain id
+  existence, the putaway and tracking work adds rules that compare
+  *values* across repos. Each is defined, none is implemented, and all
+  wait for the same C1 design decision (where cross-repo checks run, and
+  against which version of each repo).
+
+  | # | Rule | Repos | Severity | Origin |
+  |---|---|---|---|---|
+  | R1 | A `search_rule` with `FEFO` or `min_remaining_shelf_life_days` scopes an item whose `tracking.expiry.tracked` is false. | Allocation ↔ MasterData | error | MasterData-as-Code PR #3 |
+  | R2 | A `search_rule`'s `min_remaining_shelf_life_days` is above the item's `tracking.expiry.min_remaining_at_receipt_days`: stock can be received that this rule can never ship. | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
+  | R3 | A `putaway_rule` step sets `allow_mixed_lots` for an item with `tracking.lot: none` (has no effect). | Allocation ↔ MasterData | warning | MasterData-as-Code PR #3 |
+  | R4 | A `putaway_rule` step's `load_unit_types` contains an id that is not a Topology `load_unit_type`, or not in the zone's `allowed_load_unit_types`. | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
+  | R5 | A `putaway_rule` step sets `allow_mixed_items: true` on a zone whose `homogeneity_required` is true. | Allocation ↔ Topology | error | Allocation-as-Code PR #3 |
+
+  R1–R3 resolve item tracking through `MasterData-as-Code`'s
+  `tools/tracking.py` (category inheritance), so a cross-repo check must
+  use the compiled MasterData artifact, not the raw `items.yaml`.
+
 - **C2 — Schema strictness is uneven.** `Topology-as-Code` closes every
   schema with `additionalProperties: false`; the others largely do not.
   Whether that is deliberate (younger repos, still moving) or drift is
@@ -125,7 +143,8 @@ From the Domain Map, plus one gap the Map does not currently name.
   *slotting optimization* as analytics, which is a different thing: a
   putaway destination has to be decided on every inbound. **Worth adding to
   the Domain Map as its own row rather than leaving it in the gap between
-  two entries.**
+  two entries.** *In progress:* `Allocation-as-Code` PR #3 adds
+  `putaway_rule` as the inbound counterpart of `search_rule`.
 
 ## Suggested order
 
