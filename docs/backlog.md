@@ -105,11 +105,13 @@ Real defects a runtime hits, not modelling preferences.
   repo never turns the consumer red; taking it over is a deliberate
   re-pin. Candidate pattern for the rest of C1 where the consumer needs
   the *data*, not only the ids.
-- **C1c — Topology follow-up: gross weight.** With `tare_weight` in the
-  pinned carrier catalog, `Topology-as-Code`'s storage-envelope check
-  could compare carrier `max_weight` + `tare_weight` against a storage
-  point's `max_weight`; today it uses `max_weight` alone. Not changed yet
-  because it may turn existing examples red.
+- **C1c — Topology follow-up: gross weight.** *Closed, not pursued:*
+  adding `tare_weight` to the static storage-envelope check would only
+  improve a design-time plausibility check. At runtime the weight of a
+  load unit is measured by a scale; a calculated weight is too risky to
+  rely on. Topology's bay and shelf load limits (`load_limits`) follow the
+  same rule: Topology states the limits, the runtime compares the measured
+  weight.
 - **C2 — Schema strictness is uneven.** `Topology-as-Code` closes almost
   every schema with `additionalProperties: false`; the others close about
   half. Whether that is deliberate (younger repos, still moving) or drift is
@@ -250,12 +252,11 @@ From the Domain Map, plus one gap the Map does not currently name.
 
 ## Suggested order
 
-A1, A2, B1, B2 and B3 are done (2026-10-31). No known correctness hole
+A1, A2, B1, B2, B3 and C1c are done or closed (2026-10-31). No known correctness hole
 remains open.
 
 1. **C1** — the biggest remaining structural weakness: decide where the
    cross-repo rules R1–R12 run, then build. Start with the design
    decision, not with code.
-2. **C1c** — small, but may turn existing examples red.
-3. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
+2. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
    investments rather than reactive fixes.
