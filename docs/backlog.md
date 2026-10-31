@@ -88,8 +88,8 @@ Real defects a runtime hits, not modelling preferences.
   | R8 | A `fixed_bin_assignment.storage_point` is not a compiled Topology `storage_point`, or its storage type does not allow the load unit the item is stored in. | Allocation ↔ Topology | error | fixed-bin PR |
   | R9 | A `fixed_bin_assignment` names an item or `uom` that MasterData does not define. | Allocation ↔ MasterData | error | fixed-bin PR |
   | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
-
   | R11 | A `putaway_rule` places an item into a zone whose `storage_condition` differs from the item's `storage_condition` (MasterData). | Allocation ↔ MasterData ↔ Topology | error | catalog-pinning PRs |
+  | R12 | An order_type sets `shortage_policy.allow_substitution: true`, but none of the items it can order has `lifecycle.substitute_item_id` - or a substitute id does not exist (MasterData). | OrderOrchestration ↔ MasterData | warning | shortage-policy PR |
 
   R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
@@ -161,6 +161,57 @@ Not work yet — each needs a call before anything is built.
   stock owners live in `MasterData-as-Code` as `company.yaml` `owners`,
   each item belongs to exactly one owner. Suppliers and customers remain
   open.
+- **D6 — Operating mode per direction** (inbound and outbound / inbound
+  only / outbound only). *Deferred.* The mode is a runtime state per
+  aisle or machine: an aisle served by a machine (e.g. a stacker crane)
+  must be switchable during operation, so it is not a fixed topology
+  value. `Topology-as-Code` will later only state which modes an aisle
+  or machine allows (e.g. `allowed_operating_modes` on `route_aisle` or
+  `equipment`); the current mode is set at runtime.
+- **D7 — Inventory procedure.** *Deferred.* Close to topology but not
+  topology itself: the procedure depends on the storage type (a channel
+  is in practice only countable at zero crossing), yet it is process
+  configuration, not structure. Approval of count differences is a
+  process (`OrderOrchestration-as-Code`). Legal basis in Germany: HGB
+  § 240 (duty to take inventory) and § 241 (simplifications: sample,
+  permanent, advanced or postponed key-date inventory); the exact time
+  limits of § 241 have not been checked here.
+
+  Inventory types to cover:
+
+  | Type | Trigger | Typical use |
+  |---|---|---|
+  | Key-date (`key_date`) | Fixed date, whole area | Manual storage, block storage |
+  | Permanent / cycle (`cycle`) | Interval; every point at least once per period | Rack storage, high-bay rack |
+  | Zero crossing (`zero_crossing`) | A point or channel becomes empty | Channel storage, automated storage |
+  | Putaway count (`putaway_count`) | First putaway onto an empty point | AS/RS, shuttle |
+  | Statistical sample (`sample`) | Statistical selection | Large warehouses; needs auditor approval - leave out at first |
+  | Controller count (`delegate_to_controller`) | The controller counts itself (camera, weighing) | AutoStore, AS/RS - analogous to the `DELEGATE_TO_CONTROLLER` placement strategy |
+
+  Proposal (draft, not decided): a `strategies/inventory.yaml` next to
+  `replenishment.yaml`, referencing the existing `activity_area`s with
+  `activity: physical_inventory`:
+
+  ```yaml
+  inventory_procedures:
+    - id: INV_HBR
+      activity_area: INV_AREA_HBR
+      procedures:
+        - type: zero_crossing
+        - type: cycle
+          interval: { value: 12, unit: "month" }   # every point at least once
+      count:
+        blind: true                  # counter does not see the book quantity
+        recount_tolerance_percent: 2 # deviation above this triggers a recount
+  ```
+
+  Open questions:
+  1. Owner repo: `Topology-as-Code` (strategies/), `Allocation-as-Code`,
+     or a repo of its own?
+  2. Which procedures are needed first; is `sample` needed now?
+  3. Do count rules (blind count, recount tolerance) belong here, or
+     only procedure and area?
+  4. Is `delegate_to_controller` a procedure of its own?
 
 ## E. Unmodeled domains
 
