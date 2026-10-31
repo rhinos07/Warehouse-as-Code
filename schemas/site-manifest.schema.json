@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://warehouse-as-code.internal/schemas/site-manifest.schema.json",
+  "title": "Site Manifest",
+  "description": "Composes one site (facility) from the sibling -as-Code repos, like a Terraform root module: which Topology and Allocation facility, which MasterData company and which OrderOrchestration order types belong to it, and which buildings each order type serves. Each repo stays independent; this manifest is the only place that ties them together. It is the input for cross-repo checks (backlog C1) and for a later import into a target WMS. All paths are relative to the root of the repo they belong to.",
+  "type": "object",
+  "required": ["api_version", "site"],
+  "properties": {
+    "api_version": { "const": "warehouse-as-code/v1" },
+    "site": {
+      "type": "object",
+      "required": ["id", "topology", "allocation", "masterdata", "order_types"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+/[a-z0-9_]+$",
+          "description": "<customer>/<facility>, e.g. 'example_customer/pa11'. Unique across sites/."
+        },
+        "name": { "type": "string" },
+        "topology": {
+          "type": "object",
+          "required": ["facility"],
+          "properties": {
+            "facility": { "type": "string", "description": "Path to the Topology-as-Code facility.yaml." }
+          },
+          "additionalProperties": false
+        },
+        "allocation": {
+          "type": "object",
+          "required": ["facility"],
+          "properties": {
+            "facility": { "type": "string", "description": "Path to the Allocation-as-Code facility.yaml." }
+          },
+          "additionalProperties": false
+        },
+        "masterdata": {
+          "type": "object",
+          "required": ["company"],
+          "properties": {
+            "company": { "type": "string", "description": "Path to the MasterData-as-Code company.yaml whose items this site stores." }
+          },
+          "additionalProperties": false
+        },
+        "order_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "buildings"],
+            "properties": {
+              "path": { "type": "string", "description": "Path to an OrderOrchestration-as-Code order_type.yaml." },
+              "buildings": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "uniqueItems": true,
+                "description": "Building ids (Topology warehouse.yaml target.building) this order type serves. Its split targets must exist in one of them."
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

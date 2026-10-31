@@ -130,6 +130,29 @@ same reason the Domain Map above lives here.
   vendor extensions into distinct layers, so strictness at the WMS
   boundary and openness at the authoring surface stop competing.
 
+## Sites (Composition)
+
+Each repo models one domain with its own hierarchy (Topology and
+Allocation: company → facility → building; MasterData: company →
+category; OrderOrchestration: company → channel → order type). The
+hierarchies differ on purpose - an item is company-wide, not per hall.
+What ties them together is a **site manifest** per facility in
+[`sites/<customer>/<facility>.yaml`](sites/), like a Terraform root
+module: which Topology and Allocation facility, which MasterData company
+and which order types belong to the site, and which buildings each order
+type serves. Schema: [`schemas/site-manifest.schema.json`](schemas/site-manifest.schema.json).
+
+`tools/check_sites.py` checks the composition against the sibling repos
+(files exist, Topology and Allocation agree on the buildings, every order
+type is reachable from its company and names only existing buildings).
+CI runs it on every change and daily against the siblings' current
+`main`. It is the base for the cross-repo checks in backlog C1.
+
+```bash
+pip install -r requirements.txt
+python tools/check_sites.py --repos-dir ..   # the five repos side by side
+```
+
 ## Open Work
 
 [`docs/backlog.md`](docs/backlog.md) maps what is still open across all
