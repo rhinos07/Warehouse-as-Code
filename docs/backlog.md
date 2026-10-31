@@ -88,8 +88,8 @@ Real defects a runtime hits, not modelling preferences.
   | R8 | A `fixed_bin_assignment.storage_point` is not a compiled Topology `storage_point`, or its storage type does not allow the load unit the item is stored in. | Allocation ↔ Topology | error | fixed-bin PR |
   | R9 | A `fixed_bin_assignment` names an item or `uom` that MasterData does not define. | Allocation ↔ MasterData | error | fixed-bin PR |
   | R10 | A fixed place lies in an `owner_zones` zone not reserved for the item's owner. | Allocation ↔ MasterData ↔ Topology | error | fixed-bin PR |
-
   | R11 | A `putaway_rule` places an item into a zone whose `storage_condition` differs from the item's `storage_condition` (MasterData). | Allocation ↔ MasterData ↔ Topology | error | catalog-pinning PRs |
+  | R12 | An order_type sets `shortage_policy.allow_substitution: true`, but none of the items it can order has `lifecycle.substitute_item_id` - or a substitute id does not exist (MasterData). | OrderOrchestration ↔ MasterData | warning | shortage-policy PR |
 
   R1–R3 and R6 resolve item properties (tracking, owner) through `MasterData-as-Code`'s
   `tools/tracking.py` (category inheritance), so a cross-repo check must
