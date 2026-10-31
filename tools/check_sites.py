@@ -32,6 +32,7 @@ import yaml
 from jsonschema import Draft7Validator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import consistency_rules  # noqa: E402
 import cross_refs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -95,7 +96,8 @@ def orchestration_order_types(company: Path) -> set[Path]:
     return found
 
 
-def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids: bool = True) -> list[str]:
+def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids: bool = True,
+               warnings: list[str] | None = None) -> list[str]:
     errors: list[str] = []
     data = load_yaml(path)
     validator = Draft7Validator(json.loads(SCHEMA.read_text(encoding="utf-8")))
@@ -160,11 +162,16 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
         return errors  # ids are only meaningful once the composition holds
 
     compiled = {}
+    entities_by_building = {}
     for building, warehouse in topo.items():
         try:
-            compiled[building] = cross_refs.compile_building(repos["topology"], warehouse)
+            entities_by_building[building] = cross_refs.compile_building_entities(repos["topology"], warehouse)
         except RuntimeError as error:
             errors.append(f"{path}: {error}")
+            continue
+        compiled[building] = {
+            kind: {item["id"] for item in items} for kind, items in entities_by_building[building].items()
+        }
     if errors:
         return errors
     known_process_types = cross_refs.process_types(repos["topology"])
@@ -181,6 +188,25 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
             )
     for building, allocation in alloc.items():
         errors += cross_refs.check_allocation_building(allocation, compiled.get(building, {}), md)
+    if errors:
+        return errors  # consistency rules assume the ids resolve
+
+    # Consistency rules (backlog C1a): R11, R4, R5.
+    try:
+        items = consistency_rules.compiled_items(repos["masterdata"], repos["masterdata"] / site["masterdata"]["company"])
+    except RuntimeError as error:
+        return errors + [f"{path}: {error}"]
+    catalog = cross_refs.load_yaml(repos["masterdata"] / "elements" / "load_unit_types.yaml") or {}
+    load_unit_types = {lu["id"] for lu in catalog.get("load_unit_types", [])}
+    select_rule = consistency_rules.load_precedence(repos["allocation"])
+    for building, allocation in alloc.items():
+        for level, message in consistency_rules.check_putaway_rules(
+            allocation, entities_by_building.get(building, {}), items, load_unit_types, select_rule
+        ):
+            if level == "error":
+                errors.append(message)
+            elif warnings is not None:
+                warnings.append(message)
     return errors
 
 
@@ -205,9 +231,14 @@ def main(argv: list[str]) -> int:
         print(f"No site manifests in {SITES_DIR}")
         return 2
     errors: list[str] = []
+    warnings: list[str] = []
     seen: set[str] = set()
     for manifest in manifests:
-        errors += check_site(manifest, repos, seen)
+        errors += check_site(manifest, repos, seen, warnings=warnings)
+    if warnings:
+        print(f"⚠ {len(warnings)} warning(s):")
+        for warning in warnings:
+            print(f"  - {warning}")
     if errors:
         print(f"❌ {len(errors)} error(s):")
         for error in errors:

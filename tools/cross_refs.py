@@ -40,6 +40,12 @@ def imported_files(root_file: Path, root_key: str) -> list[Path]:
 
 def compile_building(topology_repo: Path, warehouse: Path) -> dict[str, set[str]]:
     """entity type -> ids of one compiled Topology building."""
+    entities = compile_building_entities(topology_repo, warehouse)
+    return {kind: {item["id"] for item in items} for kind, items in entities.items()}
+
+
+def compile_building_entities(topology_repo: Path, warehouse: Path) -> dict[str, list[dict]]:
+    """entity type -> compiled entities of one Topology building."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "artifact.yaml"
         result = subprocess.run(
@@ -48,8 +54,7 @@ def compile_building(topology_repo: Path, warehouse: Path) -> dict[str, set[str]
         )
         if result.returncode != 0 or not out.exists():
             raise RuntimeError(f"Topology compile failed for {warehouse}:\n{result.stdout}{result.stderr}")
-        entities = (load_yaml(out) or {}).get("entities", {})
-    return {kind: {item["id"] for item in items} for kind, items in entities.items()}
+        return (load_yaml(out) or {}).get("entities", {})
 
 
 def process_types(topology_repo: Path) -> set[str]:
