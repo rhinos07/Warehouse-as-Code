@@ -161,6 +161,13 @@ Not work yet — each needs a call before anything is built.
   stock owners live in `MasterData-as-Code` as `company.yaml` `owners`,
   each item belongs to exactly one owner. Suppliers and customers remain
   open.
+- **D6 — Operating mode per direction** (inbound and outbound / inbound
+  only / outbound only). *Deferred.* The mode is a runtime state per
+  aisle or machine: an aisle served by a machine (e.g. a stacker crane)
+  must be switchable during operation, so it is not a fixed topology
+  value. `Topology-as-Code` will later only state which modes an aisle
+  or machine allows (e.g. `allowed_operating_modes` on `route_aisle` or
+  `equipment`); the current mode is set at runtime.
 
 ## E. Unmodeled domains
 
