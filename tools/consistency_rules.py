@@ -11,7 +11,7 @@ satisfy, or settings the runtime will always override:
 Implemented here:
   R11  putaway rule vs. item storage condition (error if no step of the
        item's putaway rule has a place with the item's condition)
-  R4   putaway step load_unit_types vs. load unit catalog and the zone's
+  R4   putaway step load_unit_types vs. global + customer carriers and the zone's
        allowed_load_unit_types (error for an unknown id or a type no place
        in the zone accepts)
   R5   allow_mixed_items: true on a zone whose places all require
@@ -121,7 +121,7 @@ def check_putaway_rules(allocation: Path, entities: dict[str, list[dict]], items
             allowed = {lu for p in points for lu in p.get("allowed_load_unit_types", []) or []}
             for lu in constraints.get("load_unit_types", []) or []:
                 if lu not in load_unit_types:
-                    findings.append(("error", f"{where}: R4 load unit type '{lu}' is not in the load unit catalog"))
+                    findings.append(("error", f"{where}: R4 load unit type '{lu}' is neither a global nor a customer carrier"))
                 elif points and allowed and lu not in allowed:
                     findings.append(("error", f"{where}: R4 no place in {zone.get('type')} '{zone.get('id')}' accepts load unit type '{lu}'"))
             if constraints.get("allow_mixed_items") is True and points and all(

@@ -176,6 +176,9 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
         return errors
     known_process_types = cross_refs.process_types(repos["topology"])
     md = cross_refs.masterdata_ids(repos["masterdata"] / site["masterdata"]["company"])
+    load_unit_types = cross_refs.load_unit_ids(repos["masterdata"], repos["masterdata"] / site["masterdata"]["company"])
+    for building, entities in entities_by_building.items():
+        errors += cross_refs.check_topology_load_units(building, entities, load_unit_types)
     for entry in site["order_types"]:
         order_type_file = repos["orchestration"] / entry["path"]
         errors += cross_refs.check_order_type(
@@ -196,8 +199,6 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
         items = consistency_rules.compiled_items(repos["masterdata"], repos["masterdata"] / site["masterdata"]["company"])
     except RuntimeError as error:
         return errors + [f"{path}: {error}"]
-    catalog = cross_refs.load_yaml(repos["masterdata"] / "elements" / "load_unit_types.yaml") or {}
-    load_unit_types = {lu["id"] for lu in catalog.get("load_unit_types", [])}
     select_rule = consistency_rules.load_precedence(repos["allocation"])
     company_file = repos["masterdata"] / site["masterdata"]["company"]
     packaging = consistency_rules.packaging_by_item(company_file)

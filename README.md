@@ -148,7 +148,10 @@ type is reachable from its company and names only existing buildings),
 then the cross-repo ids through the manifest (`tools/cross_refs.py`):
 order-type targets and workflow triggers against Topology, the targets and items of the order types' example orders (`examples`), Allocation
 zones and storage points against Topology, Allocation items, categories
-and owners against MasterData. Topology buildings are compiled with
+and owners against MasterData, and the load unit types of Topology's
+storage points and movement rules against MasterData's global catalog
+plus the company's own `load_unit_types.yaml` (Topology itself sees only
+the global catalog and warns for other ids). Topology buildings are compiled with
 Topology's own `compile.py`. On top, it runs cross-repo consistency rules
 (`tools/consistency_rules.py`, backlog C1a): errors for configuration the
 runtime can never satisfy, warnings for settings it always overrides.

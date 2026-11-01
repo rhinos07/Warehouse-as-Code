@@ -96,3 +96,34 @@ class CrossRefsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LoadUnitIdsTest(unittest.TestCase):
+    """Site-level carrier check: global MasterData catalog + the company's
+    customers/<c>/load_unit_types.yaml."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        write(self.tmp / "md/elements/load_unit_types.yaml", {"load_unit_types": [{"id": "pallet_euro"}]})
+        self.company = write(self.tmp / "md/customers/acme/company.yaml", {"company": {"id": "acme"}})
+
+    def test_global_only(self):
+        self.assertEqual(cross_refs.load_unit_ids(self.tmp / "md", self.company), {"pallet_euro"})
+
+    def test_customer_catalog_extends_global(self):
+        write(self.company.parent / "load_unit_types.yaml", {"load_unit_types": [{"id": "acme_crate"}]})
+        self.assertEqual(cross_refs.load_unit_ids(self.tmp / "md", self.company), {"pallet_euro", "acme_crate"})
+
+    def test_unknown_topology_carrier_is_error(self):
+        entities = {
+            "storage_point": [
+                {"id": "A.01", "allowed_load_unit_types": ["pallet_euro", "ghost"]},
+                {"id": "A.02", "allowed_load_unit_types": ["ghost"]},
+            ],
+            "movement_rule": [{"id": "R1", "allowed_load_unit_types": ["acme_crate"]}],
+        }
+        errors = cross_refs.check_topology_load_units("h1", entities, {"pallet_euro", "acme_crate"})
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("'ghost'", errors[0])
+        self.assertIn("A.01, A.02", errors[0])

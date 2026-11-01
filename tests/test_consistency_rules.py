@@ -81,7 +81,7 @@ class ConsistencyRulesTest(unittest.TestCase):
     def test_r4_unknown_and_unaccepted_load_units(self):
         rules = [{"id": "DEF", "steps": [self.step("storage_type", "AMB", load_unit_types=["crate", "carton"])]}]
         messages = [msg for level, msg in self.run_rules(rules, []) if level == "error"]
-        self.assertTrue(any("'crate'" in m and "catalog" in m for m in messages), messages)
+        self.assertTrue(any("'crate'" in m and "customer carrier" in m for m in messages), messages)
         self.assertTrue(any("'carton'" in m and "accepts" in m for m in messages), messages)
 
     def test_r5_mixed_items_on_homogeneous_zone_is_a_warning(self):

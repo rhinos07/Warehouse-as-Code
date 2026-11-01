@@ -82,6 +82,37 @@ def masterdata_ids(company: Path) -> dict[str, set[str]]:
     return ids
 
 
+def load_unit_ids(masterdata_repo: Path, company: Path) -> set[str]:
+    """Carrier ids known for a site: MasterData's global catalog plus the
+    company's own customers/<c>/load_unit_types.yaml (optional)."""
+    ids: set[str] = set()
+    for catalog in (masterdata_repo / "elements" / "load_unit_types.yaml",
+                    company.parent / "load_unit_types.yaml"):
+        if catalog.exists():
+            ids |= {lu.get("id") for lu in (load_yaml(catalog) or {}).get("load_unit_types", []) or [] if lu.get("id")}
+    return ids
+
+
+def check_topology_load_units(building: str, entities: dict[str, list[dict]], known: set[str]) -> list[str]:
+    """Every allowed_load_unit_types id of the compiled storage points and
+    movement rules is a global or customer carrier. Topology-as-Code only
+    warns for ids outside its pinned global copy; this is the error."""
+    errors: list[str] = []
+    unknown: dict[tuple[str, str], list[str]] = {}
+    for kind in ("storage_point", "movement_rule"):
+        for entity in entities.get(kind, []):
+            for lu in entity.get("allowed_load_unit_types", []) or []:
+                if lu not in known:
+                    unknown.setdefault((kind, lu), []).append(entity.get("id", "?"))
+    for (kind, lu), ids in sorted(unknown.items()):
+        sample = ", ".join(ids[:3]) + (f" (+{len(ids) - 3} more)" if len(ids) > 3 else "")
+        errors.append(
+            f"Topology {building}: {kind} {sample}: load unit type '{lu}' is neither in MasterData's"
+            f" global catalog nor in the company's load_unit_types.yaml"
+        )
+    return errors
+
+
 def walk(node, path=()):
     """Yields (path, dict) for every dict in a YAML tree."""
     if isinstance(node, dict):
