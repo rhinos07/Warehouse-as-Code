@@ -42,9 +42,10 @@ own home here.
 
 "Not modeled" = nobody has started; "deliberately excluded" = a
 sibling repo's own README explicitly rules it out as runtime state,
-not structure. `Allocation-as-Code` only models the *search strategy*
-(where to look, and in what order); the actual inventory/reservation
-state it searches over is still "Not modeled" everywhere, by design.
+not structure. `Allocation-as-Code` only models the *strategies* - where to
+look for stock and in what order, and where arriving stock should go; the
+actual inventory/reservation state they operate on is still "Not modeled"
+everywhere, by design.
 
 ## Executable Validation (Not a Domain)
 
@@ -108,20 +109,26 @@ Every sibling repo follows the same pattern, established first in
 
 ## Shared Vocabulary Across Repos
 
-A few IDs are meant to mean the same thing across repos but are
-currently duplicated rather than centrally owned, by deliberate choice
-(see each repo's own README "Shared Vocabulary" section) - only worth
-extracting into a real shared-catalog repo once duplication actually
-causes drift:
+A few IDs mean the same thing across repos. **Decided** (`docs/backlog.md`
+D1): no shared-catalog repo - each catalog has exactly one owner, and
+consumers either reference the owner's ids or, where they need the data
+itself, keep a **pinned, byte-identical copy** checked against the source
+commit (`docs/backlog.md` C1b). Most of these references are checked per
+site by `tools/check_sites.py` (see "Sites" below); not yet checked:
+`split_rule.when.dimension_value` against `storage_technologies`, and
+`load_unit_request.load_unit_type` in example orders.
 
-- `process_types` (`Topology-as-Code`) - referenced by
-  `movement_rule.trigger` there and `workflow_trigger.trigger` in
+- `process_types`, `storage_technologies` (owned by `Topology-as-Code`) -
+  referenced by `movement_rule.trigger` there, and by
+  `workflow_trigger.trigger` / `split_rule.when.dimension_value` in
   `OrderOrchestration-as-Code`.
-- `load_unit_types` (`Topology-as-Code`) - referenced by
-  `order-position.schema.json`'s `load_unit_request.load_unit_type` in
-  `OrderOrchestration-as-Code`; candidate to move to `MasterData-as-Code`.
-- `item_id` (`MasterData-as-Code`) - referenced by
-  `order-position.schema.json`'s `material_request.item_id`.
+- `load_unit_types`, `storage_conditions`, `uom_types` (owned by
+  `MasterData-as-Code`) - `Topology-as-Code` keeps pinned copies;
+  `load_unit_types` is also referenced by `OrderOrchestration-as-Code`'s
+  `load_unit_request.load_unit_type`.
+- `item_id`, category, owner (owned by `MasterData-as-Code`) - referenced
+  by `OrderOrchestration-as-Code`'s `material_request.item_id` and
+  `Allocation-as-Code`'s `applies_to`.
 
 ## Architecture Decisions
 
@@ -133,6 +140,12 @@ same reason the Domain Map above lives here.
   separates human-authored intent, the compiled machine contract, and
   vendor extensions into distinct layers, so strictness at the WMS
   boundary and openness at the authoring surface stop competing.
+
+## Standards Crosswalk
+
+[`docs/standards-crosswalk.md`](docs/standards-crosswalk.md) (draft) maps
+the repos' terms to ISA-95 and SAP EWM for integrators who know one of
+those - a mapping only; no repo adopts their names.
 
 ## Sites (Composition)
 
@@ -176,10 +189,9 @@ cross-repo dependencies belong to no single repo either. Each repo's own
 
 ## Open Questions
 
-- Whether to extract a shared-vocabulary repo (see above) - deliberately
-  deferred until duplication causes real pain. Note `storage_technologies`
-  was settled a different way: given an owner (`Topology-as-Code`) rather
-  than extracted.
+- The open decisions in [`docs/backlog.md`](docs/backlog.md) section D
+  (e.g. trading-partner master data, inventory procedure, ABC
+  classification). The shared-vocabulary question is settled - see above.
 - Everything under "Not modeled" above.
 
 ## Non-Goals
