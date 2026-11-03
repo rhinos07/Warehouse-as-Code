@@ -321,5 +321,5 @@ open in the configuration repos.
    in `rule_for` (Finding #12). This is what keeps the POC an honest test
    of the configuration.
 3. **D-items** as they become blocking (D10 is already visible in a running
-    scenario); **C2/C3/C4 and E1/E2** as deliberate
+   `WMS-POC` scenario); **C2/C3/C4 and E1/E2** as deliberate
    investments rather than reactive fixes.
