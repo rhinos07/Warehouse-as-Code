@@ -83,7 +83,8 @@ Real defects a runtime hits, not modelling preferences.
   every change and daily against the siblings' `main`. `load_unit_type`
   data is additionally covered by pinned copies (C1b). Facility ids are
   aligned too: Allocation uses Topology's `PA11` / `LP01` (was
-  `facility_pa11` / `facility_lp01`; a convention, not checked).
+  `facility_pa11` / `facility_lp01`), and the site check now rejects a
+  mismatch.
 - **C1a — Cross-repo consistency rules.** Beyond plain id existence,
   these rules compare *values* across repos. They run in
   `tools/check_sites.py` (`tools/consistency_rules.py`), through the site
