@@ -10,8 +10,10 @@ Steps" and `WMS-POC`'s "Findings" stay authoritative for the detail of an
 item; this page says what exists, what blocks what, and why an item
 matters. Where the two disagree, the owning repo wins.
 
-Status as of the last pass: ADR-0001's four measures are all merged, and
-`storage_type.technology` has landed in `Topology-as-Code`.
+Status as of the last pass (2026-11-03): ADR-0001's four measures are all
+merged; sections A and B are closed; cross-repo checking (C1) is built -
+site manifests plus `tools/check_sites.py` with all consistency rules
+R1-R12. What remains is listed under "Suggested order" below.
 
 ## A. Unlocked by the technology anchor
 
@@ -51,7 +53,9 @@ Real defects a runtime hits, not modelling preferences.
   category > default; since an item has exactly one id, owner and
   category, identical scopes are the only possible tie, and
   `tools/validate.py` rejects them. `tools/precedence.py` is the reference
-  selection. `WMS-POC` Finding #12 should be re-checked against it.
+  selection. `WMS-POC` Finding #12 now records this as fixed upstream; its
+  own `rule_for` still ranks only item_id > category > default (no owner
+  scopes), which no current scenario needs.
 - **B3 — `SEARCH_DEFAULT` cannot produce a technology split.** *Closed in
   `Allocation-as-Code` #2:* `SEARCH_DEFAULT` now searches `PICK_ZONE_A`,
   then `AUTOSTORE_A`, then `HBR`, so a search-driven allocation can
@@ -59,31 +63,30 @@ Real defects a runtime hits, not modelling preferences.
 
 ## C. Structural, cross-cutting
 
-- **C1 — Cross-repo referential integrity is enforced nowhere.** Six
-  reference classes cross repo boundaries (`target.id`, `item_id`,
-  `zone.id`, `load_unit_type`, `applies_to.category`/`item_id`, and since
-  the stock-owner work `applies_to.owner` → `MasterData-as-Code`
-  `company.yaml` owners) and no
-  repo's `tools/validate.py` checks any of them - except `load_unit_type`
-  data, which `Topology-as-Code` now checks through pinned copies (C1b).
-  `WMS-POC` does existence
-  checks as a demo, not as a gate. **The largest remaining structural
-  weakness** — today this is the only thing that could let a broken
-  configuration reach a WMS. Needs a design decision before work starts:
-  shared tool, per-repo duplication, or CI-only.
-- **C1 — id checks done:** site manifests (`sites/`) bind the repos per
+- **C1 — Cross-repo referential integrity.** *Built.* Several reference
+  classes cross repo boundaries (`target.id`, `item_id`, `zone.id`,
+  `load_unit_type`, `applies_to.category`/`item_id`/`owner`), and no
+  repo's own `tools/validate.py` resolves them. The decision was a shared
+  tool here, run in CI: site manifests (`sites/`) bind the repos per
   facility; `tools/check_sites.py` checks the composition and, through
   `tools/cross_refs.py`, the plain cross-repo ids: order-type targets
   against the buildings each order type serves, workflow triggers
   against Topology `process_types`, Allocation zones and storage points
-  against the same-named Topology building, Allocation item ids,
-  categories and owners against MasterData. Topology buildings are
-  compiled with Topology's own `compile.py`. Runs in CI on every change
-  and daily. The example orders in `OrderOrchestration-as-Code/examples/`
-  are checked too (manifest `examples`). Next: the consistency rules
-  R1–R12 (C1a). The facility id differs between Topology (`PA11`) and
-  Allocation (`facility_pa11`); harmless for the manifest, but worth
-  aligning.
+  (search and putaway) against the same-named Topology building,
+  Allocation item ids, categories and owners against MasterData, and the
+  targets and item ids of the example orders in
+  `OrderOrchestration-as-Code/examples/` (manifest `examples`). Topology
+  buildings are compiled with Topology's own `compile.py`. Runs in CI on
+  every change and daily against the siblings' `main`. `load_unit_type`
+  data is additionally covered by pinned copies (C1b).
+
+  Still open:
+  - `split_rule.when.dimension_value` against Topology's
+    `storage_technologies` is checked nowhere (it was the drift A2
+    fixed by hand).
+  - `load_unit_request.load_unit_type` in example orders is not checked.
+  - The facility id differs between Topology (`PA11`) and Allocation
+    (`facility_pa11`); harmless for the manifest, but worth aligning.
 - **C1a — Cross-repo consistency rules.** Beyond plain id existence,
   these rules compare *values* across repos. They run in
   `tools/check_sites.py` (`tools/consistency_rules.py`), through the site
@@ -138,7 +141,7 @@ Real defects a runtime hits, not modelling preferences.
 - **C2 — Schema strictness is uneven.** `Topology-as-Code` closes almost
   every schema with `additionalProperties: false`; the others close about
   half. Whether that is deliberate (younger repos, still moving) or drift is
-  worth deciding rather than leaving implicit. Counted on 2026-10-31 as
+  worth deciding rather than leaving implicit. Counted on 2026-11-03 as
   schemas with a top-level `additionalProperties: false`:
 
   | Repo | Closed schemas | Open |
@@ -146,15 +149,16 @@ Real defects a runtime hits, not modelling preferences.
   | `Topology-as-Code` | 23 / 25 | `quantity` (definitions only, no top-level object), `uom-type` (pinned copy, must accept every source field) - both by design |
   | `OrderOrchestration-as-Code` | 7 / 13 | `channel`, `company`, `order-header` (open on purpose, `fields.yaml` extends it), `order-type`, `split-dimension`, `split-reason` |
   | `MasterData-as-Code` | 7 / 12 | `category`, `company`, `hazmat-class`, `packaging-material`, `uom-type` |
-  | `Allocation-as-Code` | 6 / 11 | `allocation`, `company`, `facility`, `placement-strategy`, `selection-strategy` |
+  | `Allocation-as-Code` | 7 / 12 | `allocation`, `company`, `facility`, `placement-strategy`, `selection-strategy` |
 
-- **C3 — Test coverage is uneven.** Counted on 2026-10-31:
+- **C3 — Test coverage is uneven.** Counted on 2026-11-03:
 
   | Repo | Test files | CI test job |
   |---|---|---|
-  | `Topology-as-Code` | 11 | yes |
-  | `MasterData-as-Code` | 4 | yes |
-  | `Allocation-as-Code` | 3 | yes |
+  | `Topology-as-Code` | 14 | yes |
+  | `MasterData-as-Code` | 5 | yes |
+  | `Allocation-as-Code` | 4 | yes |
+  | `Warehouse-as-Code` (site check) | 3 | yes |
   | `OrderOrchestration-as-Code` | 2 | yes |
 
   `Allocation-as-Code` and `MasterData-as-Code` test their newer rules
@@ -274,6 +278,14 @@ Not work yet — each needs a call before anything is built.
   own stock, barcodes and tracking, or only its components; does
   OrderOrchestration explode a kit line into component lines, and if so
   as a split rule or a new position kind?
+- **D10 — One status machine per order type, shared by its sub-orders.**
+  From `WMS-POC` Finding #3, not yet tracked in `OrderOrchestration-as-Code`:
+  `inbound_advice`'s `status.yaml` needs an ASN-only shortcut
+  (`receipt_confirmed → completed`) so `update_parent_status` has a legal
+  target, and every putaway sub-order is forced through
+  `receipt_confirmed`, which means nothing for a piece split off after
+  receipt. Open: should a sub-order (or a `split_rule`) be able to name
+  its own status machine, or is the shared one plus shortcuts acceptable?
 
 ## E. Unmodeled domains
 
@@ -284,27 +296,30 @@ From the Domain Map, plus one gap the Map does not currently name.
   ledger without decrementing it, so two orders would both "find" the same
   stock.
 - **E2 — Wave / batch planning.** Untouched.
-- **E3 — Putaway destination determination.** No repo models it:
-  `Allocation-as-Code` covers stock *search* (where existing stock is), not
-  where arriving stock should go. `WMS-POC` Finding #10 — its inbound split
-  is the one decision it still hardcodes. Note the Domain Map excludes
-  *slotting optimization* as analytics, which is a different thing: a
-  putaway destination has to be decided on every inbound. **Worth adding to
-  the Domain Map as its own row rather than leaving it in the gap between
-  two entries.** *Closed as configuration:* `Allocation-as-Code` models
-  it with `putaway_rule` (#3, the inbound counterpart of `search_rule`,
-  with a placement-strategy catalog), owner zones (#4) and fixed-bin
-  assignments (#5); the Domain Map has its own row now. Still open on the
-  runtime side: `WMS-POC` Finding #10 - the POC does not read
-  `putaway_rule` yet and keeps its hardcoded inbound split.
+- **E3 — Putaway destination determination.** *Closed as configuration:*
+  `Allocation-as-Code` models it with `putaway_rule` (#3, the inbound
+  counterpart of `search_rule`, with a placement-strategy catalog), owner
+  zones (#4) and fixed-bin assignments (#5), and the Domain Map has its
+  own row for it. (Not to be confused with *slotting optimization*, which
+  the Domain Map excludes as analytics: a putaway destination has to be
+  decided on every inbound.) Still open on the runtime side: `WMS-POC`
+  Finding #10 - the POC does not read `putaway_rule` yet and keeps its
+  hardcoded inbound split.
 
 ## Suggested order
 
-A1, A2, B1, B2, B3 and C1c are done or closed (2026-10-31). No known correctness hole
-remains open.
+A1, A2, B1-B3, C1 (with C1a, all of R1-R12), C1c and E3 (configuration
+side) are done or closed (2026-11-03). No known correctness hole remains
+open in the configuration repos.
 
-1. **C1** — the biggest remaining structural weakness: decide where the
-   cross-repo rules R1–R12 run, then build. Start with the design
-   decision, not with code.
-2. **D-items** as they become blocking; **C2/C3/C4 and E** as deliberate
+1. **C1 remainders** - check `split_rule.when.dimension_value` against
+   `storage_technologies` (the one cross-repo reference whose drift has
+   already happened once, A2), and `load_unit_type` in example orders.
+   Small, mechanical additions to `tools/cross_refs.py`.
+2. **`WMS-POC` catching up with the config** - read `putaway_rule`
+   instead of the hardcoded inbound split (Finding #10), and owner scopes
+   in `rule_for` (Finding #12). This is what keeps the POC an honest test
+   of the configuration.
+3. **D-items** as they become blocking (D10 is already visible in a running
+   `WMS-POC` scenario); **C2/C3/C4 and E1/E2** as deliberate
    investments rather than reactive fixes.
