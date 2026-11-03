@@ -30,7 +30,7 @@ class CheckSitesTest(unittest.TestCase):
         write(topo / "facility.yaml", {"facility": {"id": "F1", "buildings": ["buildings/h1/warehouse.yaml"]}})
         write(topo / "buildings/h1/warehouse.yaml", {"target": {"building": "h1"}})
         alloc = self.repos["allocation"] / c / "facilities/f1"
-        write(alloc / "facility.yaml", {"facility": {"id": "f1", "buildings": ["buildings/h1/allocation.yaml"]}})
+        write(alloc / "facility.yaml", {"facility": {"id": "F1", "buildings": ["buildings/h1/allocation.yaml"]}})
         write(alloc / "buildings/h1/allocation.yaml", {"allocation": {"id": "h1"}})
         write(self.repos["masterdata"] / c / "company.yaml", {"company": {"id": "acme"}})
         orch = self.repos["orchestration"] / c
@@ -79,6 +79,12 @@ class CheckSitesTest(unittest.TestCase):
         errors = self.run_check()
         self.assertTrue(any("'h1' is in Topology but has no Allocation" in e for e in errors), errors)
         self.assertTrue(any("'h2' is in Allocation but not in Topology" in e for e in errors), errors)
+
+    def test_facility_id_mismatch_is_reported(self):
+        write(self.repos["allocation"] / "customers/acme/facilities/f1/facility.yaml",
+              {"facility": {"id": "facility_f1", "buildings": ["buildings/h1/allocation.yaml"]}})
+        errors = self.run_check()
+        self.assertEqual(errors, [f"{self.sites / 'acme/f1.yaml'}: facility id differs: Topology 'F1', Allocation 'facility_f1'"])
 
     def test_unknown_building_on_order_type(self):
         self.manifest["site"]["order_types"][0]["buildings"] = ["h9"]

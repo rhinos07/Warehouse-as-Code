@@ -10,7 +10,8 @@ This tool checks the composition itself, not the content of each repo
   - the manifest matches the schema; its id matches its path
     sites/<customer>/<facility>.yaml and is unique;
   - every referenced file exists and lies under customers/<customer>/;
-  - Topology and Allocation declare the same buildings for the facility;
+  - Topology and Allocation declare the same facility id and the same
+    buildings for the facility;
   - every order type is reachable from the OrderOrchestration company and
     names only buildings the Topology facility has.
 
@@ -76,6 +77,10 @@ def topology_buildings(facility: Path) -> dict[str, Path]:
     return buildings
 
 
+def declared_facility_id(facility: Path) -> str | None:
+    return ((load_yaml(facility) or {}).get("facility") or {}).get("id")
+
+
 def allocation_buildings(facility: Path) -> dict[str, Path]:
     """Building id (allocation.yaml allocation.id) -> allocation.yaml."""
     buildings = {}
@@ -131,6 +136,9 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     topo = topology_buildings(topo_facility) if topo_facility else {}
     alloc = allocation_buildings(alloc_facility) if alloc_facility else {}
     if topo_facility and alloc_facility:
+        topo_id, alloc_id = declared_facility_id(topo_facility), declared_facility_id(alloc_facility)
+        if topo_id != alloc_id:
+            errors.append(f"{path}: facility id differs: Topology '{topo_id}', Allocation '{alloc_id}'")
         for building in sorted(topo.keys() - alloc.keys()):
             errors.append(f"{path}: building '{building}' is in Topology but has no Allocation building")
         for building in sorted(alloc.keys() - topo.keys()):
