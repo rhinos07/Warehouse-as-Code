@@ -175,6 +175,7 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     if errors:
         return errors
     known_process_types = cross_refs.process_types(repos["topology"])
+    known_technologies = cross_refs.storage_technologies(repos["topology"])
     md = cross_refs.masterdata_ids(repos["masterdata"] / site["masterdata"]["company"])
     load_unit_types = cross_refs.load_unit_ids(repos["masterdata"], repos["masterdata"] / site["masterdata"]["company"])
     for building, entities in entities_by_building.items():
@@ -182,12 +183,13 @@ def check_site(path: Path, repos: dict[str, Path], seen_ids: set[str], check_ids
     for entry in site["order_types"]:
         order_type_file = repos["orchestration"] / entry["path"]
         errors += cross_refs.check_order_type(
-            order_type_file, entry["buildings"], compiled, known_process_types
+            order_type_file, entry["buildings"], compiled, known_process_types, known_technologies
         )
         order_type_id = ((cross_refs.load_yaml(order_type_file) or {}).get("order_type") or {}).get("id")
         for example_dir in entry.get("examples", []):
             errors += cross_refs.check_examples(
-                repos["orchestration"] / example_dir, order_type_id, entry["buildings"], compiled, md
+                repos["orchestration"] / example_dir, order_type_id, entry["buildings"], compiled, md,
+                load_unit_types,
             )
     for building, allocation in alloc.items():
         errors += cross_refs.check_allocation_building(allocation, compiled.get(building, {}), md)

@@ -25,7 +25,7 @@ follow-ups.
 | # | Repo | Work | Closes |
 |---|---|---|---|
 | A1 | `WMS-POC` | ~~Drop the hardcoded `ZONE_TECHNOLOGY` table in `poc/engine.py`; read the technology from the compiled artifact instead.~~ *Done:* `ZONE_TECHNOLOGY` is gone; the POC reads the compiled technology (its Finding #8, which surfaced #9). | its Finding #8 |
-| A2 | `OrderOrchestration-as-Code` | ~~Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog.~~ *Done in the data:* every `dimension_value` (`autostore`, `shuttle`, `manual_warehouse`) is a catalog id; `manual_pick` is gone. Not enforced by a check - that is a cross-repo reference (C1). | the vocabulary drift below |
+| A2 | `OrderOrchestration-as-Code` | ~~Point `split_rule.when.dimension_value` at Topology's `storage_technologies` catalog.~~ *Done in the data:* every `dimension_value` (`autostore`, `shuttle`, `manual_warehouse`) is a catalog id; `manual_pick` is gone. Enforced since 2026-11-03 by `tools/check_sites.py` (C1). | the vocabulary drift below |
 
 A2's former symptom (`b2c_multi_system` used `manual_pick` where
 `b2c_standard` used `manual_warehouse`) is gone; both use `manual_warehouse`.
@@ -75,18 +75,17 @@ Real defects a runtime hits, not modelling preferences.
   (search and putaway) against the same-named Topology building,
   Allocation item ids, categories and owners against MasterData, and the
   targets and item ids of the example orders in
-  `OrderOrchestration-as-Code/examples/` (manifest `examples`). Topology
+  `OrderOrchestration-as-Code/examples/` (manifest `examples`), including
+  their `load_unit_request.load_unit_type`s, and `split_rule.when.dimension_value`
+  (for `split_by: storage_technology`) against Topology's
+  `storage_technologies` - the drift A2 had fixed by hand. Topology
   buildings are compiled with Topology's own `compile.py`. Runs in CI on
   every change and daily against the siblings' `main`. `load_unit_type`
   data is additionally covered by pinned copies (C1b).
 
-  Still open:
-  - `split_rule.when.dimension_value` against Topology's
-    `storage_technologies` is checked nowhere (it was the drift A2
-    fixed by hand).
-  - `load_unit_request.load_unit_type` in example orders is not checked.
-  - The facility id differs between Topology (`PA11`) and Allocation
-    (`facility_pa11`); harmless for the manifest, but worth aligning.
+  Still open: the facility id differs between Topology (`PA11`) and
+  Allocation (`facility_pa11`); harmless for the manifest, but worth
+  aligning.
 - **C1a — Cross-repo consistency rules.** Beyond plain id existence,
   these rules compare *values* across repos. They run in
   `tools/check_sites.py` (`tools/consistency_rules.py`), through the site
@@ -310,16 +309,13 @@ From the Domain Map, plus one gap the Map does not currently name.
 
 A1, A2, B1-B3, C1 (with C1a, all of R1-R12), C1c and E3 (configuration
 side) are done or closed (2026-11-03). No known correctness hole remains
-open in the configuration repos.
+open in the configuration repos; the only C1 leftover is the facility id
+alignment, a data rename rather than a check.
 
-1. **C1 remainders** - check `split_rule.when.dimension_value` against
-   `storage_technologies` (the one cross-repo reference whose drift has
-   already happened once, A2), and `load_unit_type` in example orders.
-   Small, mechanical additions to `tools/cross_refs.py`.
-2. **`WMS-POC` catching up with the config** - read `putaway_rule`
+1. **`WMS-POC` catching up with the config** - read `putaway_rule`
    instead of the hardcoded inbound split (Finding #10), and owner scopes
    in `rule_for` (Finding #12). This is what keeps the POC an honest test
    of the configuration.
-3. **D-items** as they become blocking (D10 is already visible in a running
+2. **D-items** as they become blocking (D10 is already visible in a running
    `WMS-POC` scenario); **C2/C3/C4 and E1/E2** as deliberate
    investments rather than reactive fixes.
