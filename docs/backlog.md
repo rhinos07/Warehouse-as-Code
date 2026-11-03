@@ -81,11 +81,9 @@ Real defects a runtime hits, not modelling preferences.
   `storage_technologies` - the drift A2 had fixed by hand. Topology
   buildings are compiled with Topology's own `compile.py`. Runs in CI on
   every change and daily against the siblings' `main`. `load_unit_type`
-  data is additionally covered by pinned copies (C1b).
-
-  Still open: the facility id differs between Topology (`PA11`) and
-  Allocation (`facility_pa11`); harmless for the manifest, but worth
-  aligning.
+  data is additionally covered by pinned copies (C1b). Facility ids are
+  aligned too: Allocation uses Topology's `PA11` / `LP01` (was
+  `facility_pa11` / `facility_lp01`; a convention, not checked).
 - **C1a — Cross-repo consistency rules.** Beyond plain id existence,
   these rules compare *values* across repos. They run in
   `tools/check_sites.py` (`tools/consistency_rules.py`), through the site
@@ -309,8 +307,7 @@ From the Domain Map, plus one gap the Map does not currently name.
 
 A1, A2, B1-B3, C1 (with C1a, all of R1-R12), C1c and E3 (configuration
 side) are done or closed (2026-11-03). No known correctness hole remains
-open in the configuration repos; the only C1 leftover is the facility id
-alignment, a data rename rather than a check.
+open in the configuration repos, and nothing of C1 is left.
 
 1. **`WMS-POC` catching up with the config** - read `putaway_rule`
    instead of the hardcoded inbound split (Finding #10), and owner scopes
