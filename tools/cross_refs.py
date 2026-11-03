@@ -7,10 +7,14 @@ manifest:
     split, completion and other rules) exist in a building the order
     type serves;
   - OrderOrchestration workflow triggers name a Topology process_type;
+  - OrderOrchestration split rules that split by storage_technology
+    claim a value from Topology's storage_technologies catalog;
   - Allocation zones (storage_type / activity_area) and storage points
     exist in the Topology building with the same id;
   - item ids, categories and owners used by Allocation exist in the
-    site's MasterData company.
+    site's MasterData company;
+  - example orders: header targets in the served buildings, item ids in
+    MasterData, load unit types in MasterData's catalogs.
 
 Topology buildings are compiled with Topology-as-Code's own
 tools/compile.py, so the check sees the same ids a WMS import would.
@@ -60,6 +64,11 @@ def compile_building_entities(topology_repo: Path, warehouse: Path) -> dict[str,
 def process_types(topology_repo: Path) -> set[str]:
     catalog = load_yaml(topology_repo / "elements" / "process_types.yaml") or {}
     return {item["id"] for item in catalog.get("process_types", [])}
+
+
+def storage_technologies(topology_repo: Path) -> set[str]:
+    catalog = load_yaml(topology_repo / "elements" / "storage_technologies.yaml") or {}
+    return {item["id"] for item in catalog.get("storage_technologies", [])}
 
 
 def masterdata_ids(company: Path) -> dict[str, set[str]]:
@@ -129,7 +138,7 @@ def where(path) -> str:
 
 
 def check_order_type(order_type: Path, buildings: list[str], compiled: dict[str, dict[str, set[str]]],
-                     known_process_types: set[str]) -> list[str]:
+                     known_process_types: set[str], known_technologies: set[str]) -> list[str]:
     errors = []
     targets: dict[str, set[str]] = {kind: set() for kind in TARGET_TYPES}
     for building in buildings:
@@ -146,6 +155,13 @@ def check_order_type(order_type: Path, buildings: list[str], compiled: dict[str,
             if imported.name == "workflow_triggers.yaml" and "trigger" in node and isinstance(node["trigger"], str):
                 if node["trigger"] not in known_process_types:
                     errors.append(f"{imported.name} {where(path)}: trigger '{node['trigger']}' is not a Topology process_type")
+            if node.get("split_by") == "storage_technology":
+                value = (node.get("when") or {}).get("dimension_value")
+                if isinstance(value, str) and value not in known_technologies:
+                    errors.append(
+                        f"{imported.name} {where(path)}.when.dimension_value: '{value}'"
+                        f" is not a Topology storage_technology"
+                    )
     return [f"{order_type}: {error}" for error in errors]
 
 
@@ -167,10 +183,12 @@ def check_allocation_building(allocation: Path, ids: dict[str, set[str]], md: di
 
 
 def check_examples(directory: Path, order_type_id: str, buildings: list[str],
-                   compiled: dict[str, dict[str, set[str]]], md: dict[str, set[str]]) -> list[str]:
+                   compiled: dict[str, dict[str, set[str]]], md: dict[str, set[str]],
+                   known_load_units: set[str]) -> list[str]:
     """Illustrative order instances: every example in the directory that
-    belongs to this order type has header targets in the served buildings
-    and position item ids in MasterData."""
+    belongs to this order type has header targets in the served buildings,
+    position item ids in MasterData and load unit types in MasterData's
+    global or company catalog."""
     errors = []
     targets: dict[str, set[str]] = {kind: set() for kind in TARGET_TYPES}
     for building in buildings:
@@ -188,4 +206,7 @@ def check_examples(directory: Path, order_type_id: str, buildings: list[str],
             item = node.get("item_id")
             if isinstance(item, str) and item not in md["item"]:
                 errors.append(f"{example.name} {where(path)}: item '{item}' not in MasterData")
+            load_unit = node.get("load_unit_type")
+            if isinstance(load_unit, str) and load_unit not in known_load_units:
+                errors.append(f"{example.name} {where(path)}: load unit type '{load_unit}' not in MasterData")
     return [f"{directory}: {error}" for error in errors]

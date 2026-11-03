@@ -41,17 +41,28 @@ class CrossRefsTest(unittest.TestCase):
 
     def test_known_target_passes(self):
         ot = self.order_type([{"id": "S1", "target_override": {"type": "work_center", "id": "EXIT"}}])
-        self.assertEqual(cross_refs.check_order_type(ot, ["h1"], self.compiled, {"pick_task"}), [])
+        self.assertEqual(cross_refs.check_order_type(ot, ["h1"], self.compiled, {"pick_task"}, set()), [])
 
     def test_unknown_target_is_reported(self):
         ot = self.order_type([{"id": "S1", "target_override": {"type": "activity_area", "id": "NOWHERE"}}])
-        errors = cross_refs.check_order_type(ot, ["h1"], self.compiled, set())
+        errors = cross_refs.check_order_type(ot, ["h1"], self.compiled, set(), set())
         self.assertTrue(any("'NOWHERE'" in e and "h1" in e for e in errors), errors)
 
     def test_unknown_trigger_is_reported(self):
         ot = self.order_type([], [{"id": "S1", "trigger": "teleport_task"}])
-        errors = cross_refs.check_order_type(ot, ["h1"], self.compiled, {"pick_task"})
+        errors = cross_refs.check_order_type(ot, ["h1"], self.compiled, {"pick_task"}, set())
         self.assertTrue(any("teleport_task" in e for e in errors), errors)
+
+    def test_storage_technology_dimension_value(self):
+        ot = self.order_type([
+            {"id": "S1", "split_by": "storage_technology", "when": {"dimension_value": "autostore"}},
+            {"id": "S2", "split_by": "storage_technology", "when": {"dimension_value": "manual_pick"}},
+            {"id": "S3", "split_by": "carrier", "when": {"dimension_value": "dhl"}},
+        ])
+        errors = cross_refs.check_order_type(ot, ["h1"], self.compiled, set(), {"autostore", "manual_warehouse"})
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("'manual_pick'", errors[0])
+        self.assertIn("split_rules[1].when.dimension_value", errors[0])
 
     def test_allocation_refs(self):
         root = self.tmp / "alloc"
@@ -82,14 +93,20 @@ class CrossRefsTest(unittest.TestCase):
             "order": {"order_id": "O1", "order_type": "ot",
                       "target": {"type": "door", "id": "DOOR_01"},
                       "order_target": {"type": "door", "id": "GATE_9"}},
-            "positions": [{"line_id": "L1", "material_request": {"item_id": "I9", "quantity": 1, "uom": "each"}}],
+            "positions": [
+                {"line_id": "L1", "material_request": {"item_id": "I9", "quantity": 1, "uom": "each"}},
+                {"line_id": "L2", "load_unit_request": {"load_unit_type": "pallet_euro", "quantity": 1}},
+                {"line_id": "L3", "load_unit_request": {"load_unit_type": "ghost_bin", "quantity": 1}},
+            ],
         })
         write(examples / "02.yaml", {"order": {"order_id": "O2", "order_type": "other",
                                                "target": {"type": "door", "id": "NOPE"}}})
         md = {"item": {"I1"}, "category": set(), "owner": set()}
-        errors = cross_refs.check_examples(examples, "ot", ["h1"], self.compiled, md)
+        errors = cross_refs.check_examples(examples, "ot", ["h1"], self.compiled, md, {"pallet_euro"})
         self.assertTrue(any("'GATE_9'" in e for e in errors), errors)
         self.assertTrue(any("item 'I9'" in e for e in errors), errors)
+        self.assertTrue(any("load unit type 'ghost_bin'" in e for e in errors), errors)
+        self.assertFalse(any("pallet_euro" in e for e in errors), errors)
         self.assertFalse(any("NOPE" in e for e in errors), "other order types are skipped")
         self.assertFalse(any("DOOR_01" in e for e in errors), errors)
 

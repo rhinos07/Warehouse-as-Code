@@ -113,10 +113,8 @@ A few IDs mean the same thing across repos. **Decided** (`docs/backlog.md`
 D1): no shared-catalog repo - each catalog has exactly one owner, and
 consumers either reference the owner's ids or, where they need the data
 itself, keep a **pinned, byte-identical copy** checked against the source
-commit (`docs/backlog.md` C1b). Most of these references are checked per
-site by `tools/check_sites.py` (see "Sites" below); not yet checked:
-`split_rule.when.dimension_value` against `storage_technologies`, and
-`load_unit_request.load_unit_type` in example orders.
+commit (`docs/backlog.md` C1b). These references are checked per site by
+`tools/check_sites.py` (see "Sites" below).
 
 - `process_types`, `storage_technologies` (owned by `Topology-as-Code`) -
   referenced by `movement_rule.trigger` there, and by
@@ -163,7 +161,8 @@ type serves. Schema: [`schemas/site-manifest.schema.json`](schemas/site-manifest
 (files exist, Topology and Allocation agree on the buildings, every order
 type is reachable from its company and names only existing buildings),
 then the cross-repo ids through the manifest (`tools/cross_refs.py`):
-order-type targets and workflow triggers against Topology, the targets and items of the order types' example orders (`examples`), Allocation
+order-type targets and workflow triggers against Topology, `split_rule.when.dimension_value` (for `split_by: storage_technology`) against Topology's
+`storage_technologies`, the targets, items and load unit types of the order types' example orders (`examples`), Allocation
 zones and storage points against Topology, Allocation items, categories
 and owners against MasterData, and the load unit types of Topology's
 storage points and movement rules against MasterData's global catalog
