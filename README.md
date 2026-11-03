@@ -2,10 +2,13 @@
 
 This repo is a **map, not a model**: it gives an overview of the whole
 "declarative WMS-as-concept" domain and says which sibling repo (if
-any) currently owns which part of it. It defines no schemas, has no
-CI, and is not itself validated - it exists purely so that someone
-new to this project family doesn't have to open every sibling repo's
-README to understand the overall shape.
+any) currently owns which part of it, so that someone new to this
+project family doesn't have to open every sibling repo's README to
+understand the overall shape. It defines no domain schemas of its own
+and duplicates no sibling repo's content - the one exception is the
+**site manifest** (see "Sites (Composition)" below), a thin composition
+layer that binds the siblings together per facility and is checked in
+CI; everything else here is prose.
 
 None of the sibling repos implement a real WMS. Each describes, as
 version-controlled YAML validated by JSON Schema, the **desired
@@ -48,12 +51,13 @@ state it searches over is still "Not modeled" everywhere, by design.
 [`WMS-POC`](https://github.com/rhinos07/WMS-POC) (private) is not a
 "-as-Code" spec repo and owns no domain above - it's a small, deliberately
 minimal proof of concept that actually **executes** the declarative config
-from `Topology-as-Code`, `OrderOrchestration-as-Code` and
-`MasterData-as-Code` (compiles real topology, runs the order-splitting/
+from `Topology-as-Code`, `OrderOrchestration-as-Code`, `MasterData-as-Code`
+and `Allocation-as-Code` (compiles real topology, runs the order-splitting/
 workflow-trigger/completion-rule lifecycle, checks item ids against real
-master data) against an in-memory toy inventory ledger. It exists to
-surface gaps that reading the YAML alone doesn't - see its own README
-"Findings" for what running the config actually turned up.
+master data, and resolves stock-search/putaway decisions) against an
+in-memory toy inventory ledger. It exists to surface gaps that reading the
+YAML alone doesn't - see its own README "Findings" for what running the
+config actually turned up.
 
 ## Out-of-Scope Domains
 
@@ -180,7 +184,10 @@ cross-repo dependencies belong to no single repo either. Each repo's own
 
 ## Non-Goals
 
-This repo will not gain schemas, CI, or its own `elements/`/`customers/`
-structure. If a new domain gets modeled, it gets its own sibling repo
-(or an existing one is extended) and this file's Domain Map table is
-updated to link to it - the map stays a map.
+This repo will not gain a sibling repo's own domain schemas, `elements/`,
+or `customers/` structure - the `schemas/site-manifest.schema.json` and
+`sites/` above are the one deliberate exception, a thin composition
+layer binding siblings together, not a new domain. If a new domain gets
+modeled, it gets its own sibling repo (or an existing one is extended)
+and this file's Domain Map table is updated to link to it - the map
+stays a map.
