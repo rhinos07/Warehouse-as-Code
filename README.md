@@ -158,7 +158,7 @@ and which order types belong to the site, and which buildings each order
 type serves. Schema: [`schemas/site-manifest.schema.json`](schemas/site-manifest.schema.json).
 
 `tools/check_sites.py` checks the composition against the sibling repos
-(files exist, Topology and Allocation agree on the buildings, every order
+(files exist, Topology and Allocation agree on the facility id and the buildings, every order
 type is reachable from its company and names only existing buildings),
 then the cross-repo ids through the manifest (`tools/cross_refs.py`):
 order-type targets and workflow triggers against Topology, `split_rule.when.dimension_value` (for `split_by: storage_technology`) against Topology's
