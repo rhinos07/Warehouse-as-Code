@@ -142,8 +142,8 @@ same reason the Domain Map above lives here.
 ## Standards Crosswalk
 
 [`docs/standards-crosswalk.md`](docs/standards-crosswalk.md) (draft) maps
-the repos' terms to ISA-95 and SAP EWM for integrators who know one of
-those - a mapping only; no repo adopts their names.
+the repos' terms to ISA-95, SAP EWM and AutomationML for integrators who
+know one of those - a mapping only; no repo adopts their names.
 
 ## Sites (Composition)
 
