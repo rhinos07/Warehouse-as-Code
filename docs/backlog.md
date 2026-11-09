@@ -53,13 +53,30 @@ Real defects a runtime hits, not modelling preferences.
   category > default; since an item has exactly one id, owner and
   category, identical scopes are the only possible tie, and
   `tools/validate.py` rejects them. `tools/precedence.py` is the reference
-  selection. `WMS-POC` Finding #12 now records this as fixed upstream; its
-  own `rule_for` still ranks only item_id > category > default (no owner
-  scopes), which no current scenario needs.
+  selection. `WMS-POC` now implements the full precedence and checks it
+  against `tools/precedence.py` for every item of both example companies
+  on each run (its Finding #12).
 - **B3 — `SEARCH_DEFAULT` cannot produce a technology split.** *Closed in
   `Allocation-as-Code` #2:* `SEARCH_DEFAULT` now searches `PICK_ZONE_A`,
   then `AUTOSTORE_A`, then `HBR`, so a search-driven allocation can
   resolve to the `autostore` technology. `WMS-POC` Finding #9.
+- **B4 — Inbound split target vs. putaway decision.** Found by `WMS-POC`
+  executing `putaway_rule` (its Finding #13). `inbound_advice`'s split
+  rules fix one target per technology (`SPLIT_TO_MANUAL_PUTAWAY` →
+  `PUTAWAY_ZONE_A`), while the putaway rule chooses the zone per item and
+  load unit (`COLD_ZONE_B`, `FIX`). `PUTAWAY_ZONE_A` covers neither, and
+  its technology (`shuttle`, via `HBR`) is not the one the rule claims
+  (`manual_warehouse`). Open: should a putaway split take its target from
+  the putaway decision instead of the split rule? A cheap first step would
+  be a consistency rule "a split rule's target lies in the technology it
+  claims".
+- **B5 — Putaway coverage gaps.** From the `WMS-POC` coverage report (its
+  Finding #14), the inbound twin of B3: pallets go to `HBR` (`shuttle`),
+  which no `inbound_advice` split rule claims; cases of items without a
+  fixed place are admitted by no putaway step; and the AutoStore putaway
+  split is unreachable, because nothing arrives in an AutoStore bin.
+  Decanting (case → bin at goods receipt) is not modeled anywhere - open
+  whether it is a putaway step, a work center process or a split.
 
 ## C. Structural, cross-cutting
 
@@ -344,20 +361,20 @@ From the Domain Map, plus one gap the Map does not currently name.
   zones (#4) and fixed-bin assignments (#5), and the Domain Map has its
   own row for it. (Not to be confused with *slotting optimization*, which
   the Domain Map excludes as analytics: a putaway destination has to be
-  decided on every inbound.) Still open on the runtime side: `WMS-POC`
-  Finding #10 - the POC does not read `putaway_rule` yet and keeps its
-  hardcoded inbound split.
+  decided on every inbound.) The runtime side is closed too: `WMS-POC`
+  executes `putaway_rule` instead of its old hardcoded inbound split
+  (its Finding #10), which surfaced B4 and B5.
 
 ## Suggested order
 
-A1, A2, B1-B3, C1 (with C1a, all of R1-R12), C1c and E3 (configuration
-side) are done or closed (2026-11-03). No known correctness hole remains
-open in the configuration repos, and nothing of C1 is left.
+A1, A2, B1-B3, C1 (with C1a, all of R1-R12), C1c and E3 are done or
+closed. `WMS-POC` caught up with the config on 2026-11-09 (putaway rules,
+owner-scoped precedence) and immediately found B4 and B5 - the inbound
+side had never been executed before.
 
-1. **`WMS-POC` catching up with the config** - read `putaway_rule`
-   instead of the hardcoded inbound split (Finding #10), and owner scopes
-   in `rule_for` (Finding #12). This is what keeps the POC an honest test
-   of the configuration.
+1. **B4 and B5** - the inbound path from ASN to putaway sub-order. Needs
+   a decision in `OrderOrchestration-as-Code` (where a putaway split's
+   target comes from) and data fixes there and in `Allocation-as-Code`.
 2. **D-items** as they become blocking (D10 is already visible in a running
    `WMS-POC` scenario); **C2/C3/C4 and E1/E2** as deliberate
    investments rather than reactive fixes.
