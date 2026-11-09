@@ -152,13 +152,13 @@ the canonical definition of each term.
    examining. Connections attach to ports of an element (InterfaceClass +
    InternalLink), not to the element as a whole. Conveyors with several
    in- and outlets would need this; reporting points cover part of it
-   today.
+   today. Tracked as backlog D12.
 7. **Role, template and instance kept apart.** AutomationML separates what
    an element is (RoleClass), how it is built (SystemUnitClass) and where
    it is (InstanceHierarchy). The repos have templates
    (`elements/rack_templates.yaml`) and instances, but the role is implicit
    in the list key. An explicit, vendor-neutral role per element would
-   ease such an export.
+   ease such an export. Tracked as backlog D11.
 
 ## What should not be adopted
 

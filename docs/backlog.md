@@ -284,6 +284,50 @@ Not work yet — each needs a call before anything is built.
   `receipt_confirmed`, which means nothing for a piece split off after
   receipt. Open: should a sub-order (or a `split_rule`) be able to name
   its own status machine, or is the shared one plus shortcuts acceptable?
+- **D11 — An explicit, vendor-neutral role per element.** *Proposal only.*
+  From the AutomationML comparison (`docs/standards-crosswalk.md`, "What
+  could be adopted", item 7). Today what a `Topology-as-Code` element *is*
+  shows only in the list it sits in (`storage_types`, `doors`,
+  `work_centers`, ...) and in fields such as `technology`. AutomationML
+  keeps three things apart: role (what it is), system unit class (how it
+  is built) and instance (where it is). The repos have templates
+  (`rack_templates`, `equipment_types`) and instances, but no role.
+  The idea is to adopt the role while keeping the format: YAML with
+  JSON Schema.
+
+  | What | Where | Why |
+  |---|---|---|
+  | Role catalog (e.g. `dock_door`, `rolling_gate`, `sorter`, `belt_conveyor`, `shuttle_rack`) | `Topology-as-Code` `elements/roles.yaml`, each entry stating its AutomationML, ISA-95 and VDMA counterpart | One place for the mapping instead of each tool's own table |
+  | Optional `role` on elements | `Topology-as-Code` storage types, doors, work centers, reporting points, equipment, lanes/conveyors | Finer than the list key: a dock door vs. a rolling gate, a sorter vs. a plain belt |
+
+  Today the Warehouse-Designer's AutomationML export and import hard-code
+  this mapping in two tables (`ROLES`, `STANDARD_ROLES` in
+  `src/automationml.ts` / `src/amlImport.ts`). A catalog would replace
+  both, and other vendors' tools would get the semantics from the data.
+  Open:
+  - Does the role replace `technology` on storage types, or add to it?
+  - Is the role required or optional?
+  - Which mapping columns are worth keeping per entry?
+  - Does a role belong in Topology alone, or in a shared catalog (see D1)?
+- **D12 — Ports on conveyor elements.** *Deferred until conveyors with
+  several in- and outlets need modeling* (sorter, merge, diverter).
+  Crosswalk item 6. Today connections join whole nodes:
+  `conveyor_main.connects: ["HBR", "DOOR_01", "WC_PACK_01"]` does not say
+  where goods enter or at which outlet they reach `DOOR_01`. The
+  Warehouse-Designer's AutomationML export has to add a `paths` attribute
+  for exactly that reason. In AutomationML, connections attach to named,
+  directed ports of an element.
+
+  The idea, kept in YAML: a conveyor element declares
+  `ports: [{ id, direction: in|out|inout }]`, and `connections`, `lanes`
+  and `conveyor_segments` may name an end as `ELEMENT.PORT`. Reporting
+  points cover part of this today (e.g. an aisle decision point).
+  Open:
+  - Ports on conveyors only, or on every place?
+  - Does `compile.py` emit port-level `can_edge`s, and do movement rules
+    address ports?
+  - Does it overlap with reporting points (is a port a reporting point
+    without a controller)?
 
 ## E. Unmodeled domains
 
