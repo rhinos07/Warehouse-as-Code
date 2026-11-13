@@ -16,6 +16,9 @@ structure/rules** of one concern - analogous to Terraform: the code
 describes a design, not a running system, and none of it is meant to
 become production software.
 
+For a visual, one-page introduction see the **overview page**:
+https://rhinos07.github.io/Warehouse-as-Code/ (source in [`site/`](site/)).
+
 ## Why a separate repo for this
 
 Each sibling repo already documents itself well, but nothing documents

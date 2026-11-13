@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warehouse-as-Code – plan the warehouse like a blueprint</title>
+<meta name="description" content="Overview of the Warehouse-as-Code repo family: vision, building blocks, ideas, examples and the Warehouse Designer.">
+<link rel="preload" href="fonts/caveat-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+
+<!-- Shared drawing of the mascot "Rho"; each pose adds its own props on top. -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="rho-body" viewBox="0 0 260 220">
+      <path d="M30 184 C80 181 160 186 238 182" fill="none" stroke="#8a8478" stroke-width="2" stroke-dasharray="6 6" stroke-linecap="round"/>
+      <g fill="none" stroke="#1f1e1b" stroke-width="2" opacity=".28" transform="translate(2 2)">
+        <path d="M50 132 C44 96 76 70 122 70 C152 70 170 80 180 96 C196 92 213 100 223 116 C229 126 223 139 209 141 C196 143 186 141 179 139 C166 151 122 154 86 150 C66 148 52 142 50 132 Z"/>
+        <path d="M148 140 L148 174 Q148 179 153 179 L165 179 Q170 179 170 174 L170 138"/>
+        <path d="M68 138 L68 174 Q68 179 73 179 L85 179 Q90 179 90 174 L90 146"/>
+      </g>
+      <g stroke="#1f1e1b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M50 120 C42 118 37 124 35 131" fill="none"/>
+        <path d="M35 131 L30 128 M35 131 L31 135" fill="none" stroke-width="2.5"/>
+        <path d="M148 140 L148 174 Q148 179 153 179 L165 179 Q170 179 170 174 L170 138 Z" fill="#d9d3c4"/>
+        <path d="M68 138 L68 174 Q68 179 73 179 L85 179 Q90 179 90 174 L90 146 Z" fill="#d9d3c4"/>
+        <path d="M50 132 C44 96 76 70 122 70 C152 70 170 80 180 96 C196 92 213 100 223 116 C229 126 223 139 209 141 C196 143 186 141 179 139 C166 151 122 154 86 150 C66 148 52 142 50 132 Z" fill="#d9d3c4"/>
+        <path d="M150 94 C155 106 155 118 150 130" fill="none" stroke-width="2" opacity=".5"/>
+        <path d="M104 80 C100 90 101 100 106 108" fill="none" stroke-width="2" opacity=".5"/>
+        <path d="M211 110 C213 93 218 80 227 69 C228 86 226 101 221 114 Z" fill="#f6f1e4"/>
+        <path d="M196 100 C197 91 200 85 205 81 C205 89 204 95 202 101 Z" fill="#f6f1e4"/>
+        <path d="M166 82 C161 72 163 63 170 58 C175 66 176 75 173 84 Z" fill="#d9d3c4"/>
+        <circle cx="192" cy="108" r="3.4" fill="#1f1e1b" stroke="none"/>
+        <circle cx="201" cy="125" r="5" fill="#f4b6c2" stroke="none" opacity=".8"/>
+        <path d="M207 131 Q213 135 219 130" fill="none" stroke-width="2.5"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="top">
+  <a class="brand" href="#top">Warehouse-as-Code</a>
+  <nav aria-label="Sections">
+    <a href="#vision">Vision</a>
+    <a href="#blocks">Building blocks</a>
+    <a href="#ideas">Ideas</a>
+    <a href="#example">Example</a>
+    <a href="#editor">Editor</a>
+    <a href="https://github.com/rhinos07/Warehouse-as-Code">GitHub</a>
+  </nav>
+</header>
+
+<main>
+
+<section id="vision" class="hero">
+  <div class="hero-text">
+    <p class="kicker">the idea →</p>
+    <h1>Plan the warehouse like a <span class="mark">blueprint</span>, not a construction log.</h1>
+    <p class="lead">Warehouse-as-Code describes how a warehouse should be built and which rules it runs by – as version-controlled YAML, checked by JSON Schema. Like Terraform: the code describes a design, not a running system.</p>
+    <div class="buttons">
+      <a class="btn btn-solid hand" href="https://rhinos07.github.io/Warehouse-Designer/">Open the Designer</a>
+      <a class="btn btn-line hand2" href="#blocks">See the building blocks</a>
+    </div>
+  </div>
+  <div class="hero-side">
+    <svg class="rho" viewBox="0 0 260 220" role="img" aria-label="Rho the rhino, the project mascot, says hi">
+      <use href="#rho-body"/>
+      <path d="M190 12 H244 Q252 12 252 20 V38 Q252 46 244 46 H214 L203 56 L205 46 H198 Q190 46 190 38 V20 Q190 12 198 12 Z" fill="#ffffff" stroke="#1f1e1b" stroke-width="2.5" stroke-linejoin="round"/>
+      <text x="221" y="38" text-anchor="middle" font-family="Caveat, cursive" font-weight="700" font-size="24" fill="#1f1e1b">Hi!</text>
+    </svg>
+    <div class="note note-big tr">
+      <strong>In one line</strong>
+      Racks change rarely. Rules change weekly. Both get reviewed, versioned and checked – before they reach the live WMS.
+    </div>
+  </div>
+</section>
+
+<section id="blocks">
+  <p class="kicker">building blocks</p>
+  <h2>Four sketches of one warehouse</h2>
+  <p class="intro">Each repo answers one question. They change at different speeds and are reviewed by different people. A site manifest pins them together per facility.</p>
+
+  <div class="grid">
+    <a class="card hand tl" href="https://github.com/rhinos07/OrderOrchestration-as-Code">
+      <svg class="icon" viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="32" r="3.5" fill="#1f1e1b"/><path d="M12 32 H26 C34 32 36 18 46 18 H55 M26 32 C34 32 36 46 46 46 H55"/><path d="M49 13 L55 18 L49 23 M49 41 L55 46 L49 51"/></svg>
+      <span class="repo">OrderOrchestration-as-Code</span>
+      <span class="q">How does an order get worked through?</span>
+      <p>Split into sub-orders, completion rules, what happens on a shortage.</p>
+    </a>
+    <a class="card hand2 tr" href="https://github.com/rhinos07/MasterData-as-Code">
+      <svg class="icon" viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 23 L32 13 L50 23 L50 45 L32 55 L14 45 Z" fill="#f1e6cf"/><path d="M14 23 L32 33 L50 23 M32 33 V55"/><path d="M19 35 V43 M22.5 36.5 V44.5 M27 38.5 V46.5" stroke-width="2"/></svg>
+      <span class="repo">MasterData-as-Code</span>
+      <span class="q">What do we stock?</span>
+      <p>Items, packaging levels, barcodes, lot and best-before tracking, stock owner.</p>
+    </a>
+    <a class="card hand tr" href="https://github.com/rhinos07/Allocation-as-Code">
+      <svg class="icon" viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8 H34 V34 H8 Z M8 21 H34 M21 8 V34"/><path d="M21 21 H34 V34 H21 Z" fill="#ffe36b"/><circle cx="39" cy="39" r="12" fill="#ffffff"/><path d="M48 48 L57 57" stroke-width="4"/></svg>
+      <span class="repo">Allocation-as-Code</span>
+      <span class="q">Where do we look first – and where does new stock go?</span>
+      <p>Search sequence, FIFO/FEFO, putaway rules, owner zones, fixed bins.</p>
+    </a>
+    <a class="card hand2 tl" href="https://github.com/rhinos07/Topology-as-Code">
+      <svg class="icon" viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 55 V11 M52 55 V11 M7 55 H57 M12 24 H52 M12 39 H52"/><path d="M17 14 H27 V23 H17 Z M31 28 H44 V38 H31 Z M18 42 H32 V54 H18 Z" fill="#fff3a8"/></svg>
+      <span class="repo">Topology-as-Code</span>
+      <span class="q">How is the warehouse laid out?</span>
+      <p>Racks, aisles, AutoStore cells, doors – and which movements are allowed.</p>
+    </a>
+  </div>
+
+  <figure class="diagram hand2">
+    <svg id="blocks-diagram" viewBox="0 0 900 470" role="img" aria-labelledby="blocks-diagram-title">
+      <title id="blocks-diagram-title">How the four building blocks depend on each other</title>
+    </svg>
+    <figcaption>
+      <ul class="relations">
+        <li>order ⟶ needs items from ⟶ master data</li>
+        <li>order ⟶ looks for stock via ⟶ allocation</li>
+        <li>allocation ⟶ searches areas in ⟶ topology</li>
+        <li>order ⟶ target point sits in ⟶ topology</li>
+      </ul>
+    </figcaption>
+  </figure>
+
+  <div class="grid" style="margin-top: 40px">
+    <div class="dashed">
+      <h3><svg viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 16 L23 10 L41 16 L57 10 V48 L41 54 L23 48 L7 54 Z" fill="#d9f0d3"/><path d="M23 10 V48 M41 16 V54"/><path d="M13 42 C19 31 29 37 33 29 C37 22 45 27 51 19" stroke="#c2410c" stroke-dasharray="3 4"/></svg><a href="https://github.com/rhinos07/Warehouse-as-Code">Warehouse-as-Code</a></h3>
+      <p>The map and the site manifest. Cross-repo checks R1–R12 run in CI.</p>
+    </div>
+    <div class="dashed">
+      <h3><svg viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M32 6 C47 6 58 17 58 32 C58 47 47 58 32 58 C17 58 6 47 6 32 C6 19 15 8 29 7"/><path d="M26 21 L45 32 L26 43 Z" fill="#fde0e6"/></svg>WMS-POC <small>(private)</small></h3>
+      <p>Runs the declarative rules for real and finds the gaps.</p>
+    </div>
+    <div class="dashed">
+      <h3><svg viewBox="0 0 64 64" fill="none" stroke="#1f1e1b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 44 L42 10 L54 22 L20 56 Z" fill="#fff3a8"/><path d="M17 35 L22 40 M23 29 L26 32 M29 23 L34 28 M35 17 L38 20"/><path d="M36 54 L54 36" stroke="#1f5fbf" stroke-width="3"/></svg><a href="https://github.com/rhinos07/Warehouse-Designer">Warehouse-Designer</a></h3>
+      <p>The editor in the browser, no server needed.</p>
+    </div>
+  </div>
+</section>
+
+<section id="ideas">
+  <p class="kicker">ideas &amp; open space</p>
+  <h2>What is drawn, what is still blank</h2>
+  <div class="notes" style="margin-top: 32px">
+    <div class="note n-green tl">
+      <h3>Modeled</h3>
+      <ul>
+        <li>Physical structure and movement rules</li>
+        <li>Order splitting and fulfillment</li>
+        <li>Item master data</li>
+        <li>Stock search and putaway</li>
+      </ul>
+    </div>
+    <div class="note n-yellow tr">
+      <h3>Not modeled yet</h3>
+      <ul>
+        <li>Inventory and stock state</li>
+        <li>Wave and batch planning</li>
+      </ul>
+    </div>
+    <div class="note n-pink tl">
+      <h3>Out of scope on purpose</h3>
+      <ul>
+        <li>Task execution (runtime WMS/WES)</li>
+        <li>Slotting optimization</li>
+        <li>Labor and yard management</li>
+      </ul>
+    </div>
+  </div>
+  <div class="principles">
+    <div class="list">
+      <p><span class="mark"><b>Structure vs. strategies.</b></span> Racks change during a rebuild; search and split rules change every week. They live in separate folders.</p>
+      <p><span class="mark"><b>“Can” vs. “may”.</b></span> Lanes say which paths physically exist. Movement rules say which of them are allowed.</p>
+      <p><span class="mark"><b>Checked before go-live.</b></span> Every change is validated per repo and across repos – also once a day.</p>
+    </div>
+    <svg class="rho" viewBox="0 0 260 220" role="img" aria-label="Rho the rhino checks the rules with a magnifying glass">
+      <use href="#rho-body"/>
+      <g stroke="#1f1e1b" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M184 121 L168 142" fill="none" stroke-width="6"/>
+        <circle cx="194" cy="108" r="15" fill="#ffffff" fill-opacity=".45" stroke-width="3.5"/>
+        <path d="M226 52 L234 60 L248 42" fill="none" stroke="#2f7d32" stroke-width="4.5"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<section id="example">
+  <p class="kicker">worked example</p>
+  <h2>A day in the warehouse</h2>
+  <p class="intro">One order, two items: one in the AutoStore, one in the manual area. Every step below is a rule in one of the repos.</p>
+  <ol class="steps">
+    <li><span class="num hand" aria-hidden="true">1</span><span>Customer orders two items.</span></li>
+    <li><span class="num hand2" aria-hidden="true">2</span><span>Order splits by storage technology.</span></li>
+    <li><span class="num hand" aria-hidden="true">3</span><span>Search rules find matching stock.</span></li>
+    <li><span class="num hand2" aria-hidden="true">4</span><span>Goods move on allowed paths.</span></li>
+    <li><span class="num hand" aria-hidden="true">5</span><span>Sub-orders merge into one shipment.</span></li>
+  </ol>
+  <div class="codes">
+    <figure class="code tl">
+      <figcaption><a href="https://github.com/rhinos07/OrderOrchestration-as-Code">split_rules.yaml · OrderOrchestration</a></figcaption>
+<pre><code>split_rules:
+  - id: "SPLIT_TO_SHUTTLE_ZONE"
+    split_by: "storage_technology"
+    when:
+      dimension_value: "shuttle"
+    target_override:
+      type: "activity_area"
+      id: "CONSOLIDATION_1"</code></pre>
+    </figure>
+    <figure class="code tr">
+      <figcaption><a href="https://github.com/rhinos07/Topology-as-Code">movement_rules.yaml · Topology</a></figcaption>
+<pre><code>movement_rules:
+  - id: "FORBID_COLD_TO_AMBIENT"
+    applies_to_policy: "default_allow"
+    from:
+      storage_type: "COLD_ZONE_B"
+    to:
+      storage_type: "*"
+    exclude_to:
+      storage_type: "COLD_ZONE_B"</code></pre>
+    </figure>
+    <figure class="code tl">
+      <figcaption><a href="https://github.com/rhinos07/Warehouse-as-Code/tree/main/sites">pa11.yaml · site manifest</a></figcaption>
+<pre><code>site:
+  id: "example_customer/pa11"
+  name: "Distribution Center PA11"
+  order_types:
+    - path: ".../b2c_standard/order_type.yaml"
+      buildings: ["hall_3"]</code></pre>
+    </figure>
+  </div>
+</section>
+
+<section id="editor">
+  <div class="editor hand2">
+    <div>
+      <p class="kicker">try it</p>
+      <h2>Sketch it in the Warehouse Designer</h2>
+      <p>A browser tool for the whole repo family. It runs without a server, on GitHub Pages, and checks every change with the repos’ own validators.</p>
+      <ul>
+        <li>Open a folder and validate it</li>
+        <li>See each building’s topology as a flow diagram</li>
+        <li>Edit doors, work centers and connections</li>
+        <li>Edit master data and rules as forms from the JSON Schemas</li>
+        <li>Simulate the material flow</li>
+      </ul>
+      <a class="btn btn-solid hand" href="https://rhinos07.github.io/Warehouse-Designer/">Open the Designer</a>
+    </div>
+    <div class="side">
+      <svg class="rho" viewBox="0 0 260 220" role="img" aria-label="Rho the rhino with a hard hat and a pencil in its mouth">
+        <use href="#rho-body"/>
+        <g stroke="#1f1e1b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M170 93 C170 71 202 68 207 90 Z" fill="#ffd23f"/>
+          <path d="M163 94 L213 91" fill="none" stroke-width="4"/>
+          <path d="M186 74 L188 90" fill="none" stroke-width="2"/>
+          <g transform="rotate(12 214 132)">
+            <rect x="184" y="128" width="7" height="8" rx="2" fill="#f4b6c2" stroke-width="2"/>
+            <rect x="191" y="128" width="5" height="8" fill="#c9c3b5" stroke-width="2"/>
+            <rect x="196" y="128" width="40" height="8" fill="#ffd23f" stroke-width="2"/>
+            <path d="M236 128 L249 132 L236 136 Z" fill="#f1e6cf" stroke-width="2"/>
+            <path d="M245 130.8 L249 132 L245 133.2 Z" fill="#1f1e1b" stroke="none"/>
+          </g>
+          <path d="M207 127 Q211 132 207 137" fill="none" stroke-width="2.5"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span>Concept work. None of these repos is meant to become production software.</span>
+  <nav aria-label="Repositories">
+    <a href="https://github.com/rhinos07/Warehouse-as-Code">Warehouse-as-Code</a>
+    <a href="https://github.com/rhinos07/Topology-as-Code">Topology</a>
+    <a href="https://github.com/rhinos07/MasterData-as-Code">MasterData</a>
+    <a href="https://github.com/rhinos07/Allocation-as-Code">Allocation</a>
+    <a href="https://github.com/rhinos07/OrderOrchestration-as-Code">OrderOrchestration</a>
+    <a href="https://github.com/rhinos07/Warehouse-Designer">Designer</a>
+  </nav>
+</footer>
+
+</div>
+
+<script src="vendor/rough-4.6.6.js"></script>
+<script src="diagram.js"></script>
+</body>
+</html>
